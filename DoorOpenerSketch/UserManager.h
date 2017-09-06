@@ -56,10 +56,12 @@ class UserManager
 public:
     static void DeleteAllUsers()
     {
-        for (uint16_t i=0; i<EEPROM.length(); i++)
+        for (uint16_t i=0; i<EEPROM_SIZE; i++)
         {
             EEPROM.write(i, 0);
         }
+        EEPROM.commit();
+
     }
     
     static bool FindUser(uint64_t u64_ID, kUser* pk_User)
@@ -100,7 +102,7 @@ public:
             }
     
             // Insert alphabetically sorted
-            if (stricmp(pk_NewUser->s8_Name, k_OldUser.s8_Name) < 0)
+            if (strcasecmp(pk_NewUser->s8_Name, k_OldUser.s8_Name) < 0)
             {
                 if (!ShiftUsersUp(U)) // Fill position U+1 with the user at position U
                 {
@@ -114,6 +116,7 @@ public:
         
         Utils::Print("New user stored successfully:\r\n");   
         PrintUser(pk_NewUser);
+        EEPROM.commit();
         return true;
     }
     
@@ -132,12 +135,12 @@ public:
                 return b_Success;
     
             if ((u64_ID  != 0    && u64_ID == k_User.ID.u64) ||
-                (s8_Name != NULL && stricmp(s8_Name, k_User.s8_Name) == 0))
+                (s8_Name != NULL && strcasecmp(s8_Name, k_User.s8_Name) == 0))
             {
                 ShiftUsersDown(U); // Fill position U with the user at position U+1, etc..
                 U --;              // Now there is another user at position U -> check U again
                 b_Success = true;
-
+                EEPROM.commit();
                 char s8_Buf[100];
                 sprintf(s8_Buf, "The user '%s' has been deleted.\r\n", k_User.s8_Name);
                 Utils::Print(s8_Buf);
@@ -156,7 +159,7 @@ public:
             if (!ReadUserAt(U, &k_User))
                 return b_Success;
     
-            if (stricmp(s8_Name, k_User.s8_Name) == 0)
+            if (strcasecmp(s8_Name, k_User.s8_Name) == 0)
             {
                 k_User.u8_Flags = u8_NewFlags;
                 WriteUserAt(U, &k_User);
@@ -164,6 +167,7 @@ public:
                 b_Success = true;
             }
         }
+        EEPROM.commit();
     }
           
     // Prints lines like 
@@ -217,7 +221,7 @@ private:
     static bool WriteUserAt(int s32_Index, kUser* pk_User)
     {
         uint32_t P = s32_Index * sizeof(kUser);
-        if (P + sizeof(kUser) > EEPROM.length())
+        if (P + sizeof(kUser) > EEPROM_SIZE)
             return false;
     
         byte* pu8_Ptr = (byte*)pk_User;
@@ -233,7 +237,7 @@ private:
     static bool ReadUserAt(int s32_Index, kUser* pk_User)
     {
         uint32_t P = s32_Index * sizeof(kUser);
-        if (P + sizeof(kUser) > EEPROM.length())
+        if (P + sizeof(kUser) > EEPROM_SIZE)
             return false;
     
         byte* pu8_Ptr = (byte*)pk_User;
@@ -250,7 +254,7 @@ private:
     static bool ShiftUsersUp(int U)
     {
         kUser k_User;
-        int s32_Last = (EEPROM.length() / sizeof(kUser)) -1;
+        int s32_Last = (EEPROM_SIZE / sizeof(kUser)) -1;
         if (!ReadUserAt(s32_Last, &k_User))
             return false; // this should never happen!
     

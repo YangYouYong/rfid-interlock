@@ -9,9 +9,9 @@
 // ATTENTION: Only one of the following defines must be set to true!
 // NOTE: In Software SPI mode there is no external libraray required. Only 4 regular digital pins are used.
 // If you want to transfer the code to another processor the easiest way will be to use Software SPI mode.
-#define USE_SOFTWARE_SPI   true
+#define USE_SOFTWARE_SPI   false
 #define USE_HARDWARE_SPI   false
-#define USE_HARDWARE_I2C   false
+#define USE_HARDWARE_I2C   true
 // ********************************************************************************/
 
 #include <Arduino.h>
@@ -117,7 +117,7 @@ public:
         // Initialize the I2C pins
         static inline void Begin() 
         {
-            Wire.begin();
+            Wire.begin(22,21);
         }
         // --------------------- READ -------------------------
         // Read the requested amount of bytes at once from the I2C bus into an internal buffer.

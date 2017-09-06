@@ -1,3 +1,5 @@
+
+
 /**************************************************************************
     
   @author   Elmü
@@ -18,7 +20,7 @@
 // To clone a Desfire card it would be necessary to crack a 168 bit 3K3DES or a 128 bit AES key data which is impossible.
 // If the Desfire card does not contain the correct data the door will not open even if the UID is correct.
 // IMPORTANT: After changing this compiler switch, please execute the CLEAR command!
-#define USE_DESFIRE   true
+#define USE_DESFIRE   false
 
 // This compiler switch defines if you use AES (128 bit) or DES (168 bit) for the PICC master key and the application master key.
 // Cryptographers say that AES is better.
@@ -44,37 +46,37 @@
 #define PASSWORD_TIMEOUT  5
 
 // This Arduino / Teensy pin is connected to the relay that opens the door 1
-#define DOOR_1_PIN       20
+#define DOOR_1_PIN       13  //esp32
 
 // This Arduino / Teensy pin is connected to the optional relay that opens the door 2
-#define DOOR_2_PIN       21
+#define DOOR_2_PIN       12  //esp32
 
 // This Arduino / Teensy pin is connected to the transistor that charges the battery
-#define CHARGE_PIN       14
+#define CHARGE_PIN       36  //esp32
 
 // This Arduino / Teensy pin is connected to the PN532 RSTPDN pin (reset the PN532)
 // When a communication error with the PN532 is detected the board is reset automatically.
-#define RESET_PIN         2
+#define RESET_PIN         34  //esp32
 // The software SPI SCK  pin (Clock)
-#define SPI_CLK_PIN       3
+#define SPI_CLK_PIN       18  //esp32
 // The software SPI MISO pin (Master In, Slave Out)
-#define SPI_MISO_PIN      1
+#define SPI_MISO_PIN      19  //esp32
 // The software SPI MOSI pin (Master Out, Slave In)
-#define SPI_MOSI_PIN      4
+#define SPI_MOSI_PIN      23  //esp32
 // The software SPI SSEL pin (Chip Select)
-#define SPI_CS_PIN        0
+#define SPI_CS_PIN        05  //esp32
  
 // This Arduino / Teensy pin is connected to the green LED in a two color LED.
 // The green LED flashes fast while no card is present and flashes 1 second when opening the door.
-#define LED_GREEN_PIN    10
+#define LED_GREEN_PIN    25  //esp32
 
 // This Arduino / Teensy pin is connected to the red LED in a two color LED.
 // The red LED flashes slowly when a communication error occurred with the PN532 chip and when an unauthorized person tries to open the door.
 // It flashes fast when a power failure has been detected. (Charging battery failed)
-#define LED_RED_PIN      12
+#define LED_RED_PIN      26  //esp32
 
 // This Arduino / Teensy pin is connected to the voltage divider that measures the 13,6V battery voltage
-#define VOLTAGE_MEASURE_PIN  A9
+#define VOLTAGE_MEASURE_PIN  A7 //esp32 port 35
 
 // Use 12 bit resolution for the analog input (ADC)
 // The Teensy 3.x boards have a 12 bit ADC.
@@ -90,7 +92,7 @@
 #define VOLTAGE_FACTOR   15.9
 
 // The interval in milliseconds that the relay is powered which opens the door
-#define OPEN_INTERVAL   100
+#define OPEN_INTERVAL   5000
 
 // This is the interval that the RF field is switched off to save battery.
 // The shorter this interval, the more power is consumed by the PN532.
@@ -99,6 +101,8 @@
 // Please note that the slowness of reading a Desfire card is not caused by this interval.
 // The SPI bus speed is throttled to 10 kHz, which allows to transmit the data over a long cable, but this obviously makes reading the card slower.
 #define RF_OFF_INTERVAL  1000
+
+#define EEPROM_SIZE  1984
 
 // ######################################################################################
 
@@ -134,6 +138,8 @@
 
 #include "UserManager.h"
 
+
+
 // The tick counter starts at zero when the CPU is reset.
 // This interval is added to the 64 bit tick count to get a value that does not start at zero,
 // because gu64_LastPasswd is initialized with 0 and must always be in the past.
@@ -160,16 +166,20 @@ uint32_t   gu32_CommandPos = 0;     // Index in gs8_CommandBuffer
 uint64_t   gu64_LastPasswd = 0;     // Timestamp when the user has enetered the password successfully
 uint64_t   gu64_LastID     = 0;     // The last card UID that has been read by the RFID reader  
 bool       gb_InitSuccess  = false; // true if the PN532 has been initialized successfully
+int32_t   door_open_timer = 0;       // this is a count down timer at zero close the door +ve value opne it
 
 void setup() 
 {
+    Utils::Print("Starting");
+    EEPROM.begin(EEPROM_SIZE);
+
     gs8_CommandBuffer[0] = 0;
 
     Utils::SetPinMode(DOOR_1_PIN, OUTPUT);  
-    Utils::WritePin  (DOOR_1_PIN, LOW);      
+    Utils::WritePin  (DOOR_1_PIN, HIGH);      
 
     Utils::SetPinMode(DOOR_2_PIN, OUTPUT);  
-    Utils::WritePin  (DOOR_2_PIN, LOW);      
+    Utils::WritePin  (DOOR_2_PIN, HIGH);      
 
     Utils::SetPinMode(CHARGE_PIN, OUTPUT);  
     Utils::WritePin  (CHARGE_PIN, LOW);      
@@ -183,12 +193,12 @@ void setup()
     FlashLED(LED_GREEN, 1000);
 
     // Use 12 bit resolution for the analog input (ADC)
-    analogReadResolution(ANALOG_RESOLUTION);
+//    analogReadResolution(ANALOG_RESOLUTION);
     // Use the internal reference voltage (1.2V) as analog reference
-    analogReference(INTERNAL1V2);
+//    analogReference(INTERNAL1V2);
 
     // Software SPI is configured to run a slow clock of 10 kHz which can be transmitted over longer cables.
-    gi_PN532.InitSoftwareSPI(SPI_CLK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN, SPI_CS_PIN, RESET_PIN);
+//    gi_PN532.InitSoftwareSPI(SPI_CLK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN, SPI_CS_PIN, RESET_PIN);
 
     // Open USB serial port
     SerialClass::Begin(115200);
@@ -208,6 +218,26 @@ void loop()
     uint64_t u64_StartTick = Utils::GetMillis64();
 
     static uint64_t u64_LastRead = 0;
+
+    // lets manage closing the door
+    LongDelay(100);
+    door_open_timer = door_open_timer - 100;
+    if ( door_open_timer <= 0 )
+    {
+      door_open_timer = 0;
+      Utils::WritePin(DOOR_1_PIN, HIGH);
+      Utils::WritePin(DOOR_2_PIN, HIGH);
+      SetLED(LED_OFF);
+      //Utils::Print("Closing Door(s)", LF);
+    } else
+    {
+        char Buf[80];
+        sprintf(Buf, "Keeping Door(s) open for %ldms\r\n", door_open_timer);
+        Utils::Print(Buf);
+      
+    }
+    
+    
     if (gb_InitSuccess)
     {
         // While the user is typing do not read the card to avoid delays and debug output.
@@ -218,9 +248,11 @@ void loop()
         }
 
         // Turn on the RF field for 100 ms then turn it off for one second (RF_OFF_INTERVAL) to safe battery
-        if ((int)(u64_StartTick - u64_LastRead) < RF_OFF_INTERVAL)
+        
+         if ((int)(u64_StartTick - u64_LastRead) < RF_OFF_INTERVAL)
             return;
     }
+    
 
     do // pseudo loop (just used for aborting with break;)
     {
@@ -262,9 +294,11 @@ void loop()
         }
 
         // Still the same card present
-        if (gu64_LastID == k_User.ID.u64) 
+      /*  if (gu64_LastID == k_User.ID.u64) 
             break;
-        
+
+           we need the card to be pernimently present
+      */  
         // A different card was found in the RF field
         // OpenDoor() needs the RF field to be ON (for CheckDesfireSecret())
       	OpenDoor(k_User.ID.u64, &k_Card, u64_StartTick);
@@ -275,8 +309,8 @@ void loop()
     // Turn off the RF field to save battery
     // When the RF field is on,  the PN532 board consumes approx 110 mA.
     // When the RF field is off, the PN532 board consumes approx 18 mA.
-    gi_PN532.SwitchOffRfField();
-
+    /* dmki gi_PN532.SwitchOffRfField();
+    */
     u64_LastRead = Utils::GetMillis64();
 }
 
@@ -445,7 +479,7 @@ void OnCommandReceived(bool b_PasswordValid)
     gu64_LastPasswd = Utils::GetMillis64() + PASSWORD_OFFSET_MS;
 
     // This command must work even if gb_InitSuccess == false
-    if (strnicmp(gs8_CommandBuffer, "DEBUG", 5) == 0)
+    if (strncasecmp(gs8_CommandBuffer, "DEBUG", 5) == 0)
     {
         if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 1, 1))
             return;
@@ -461,7 +495,7 @@ void OnCommandReceived(bool b_PasswordValid)
     }    
 
     // This command must work even if gb_InitSuccess == false
-    if (stricmp(gs8_CommandBuffer, "RESET") == 0)
+    if (strcasecmp(gs8_CommandBuffer, "RESET") == 0)
     {
         InitReader(false);
         if (gb_InitSuccess)
@@ -472,7 +506,7 @@ void OnCommandReceived(bool b_PasswordValid)
     }   
 
     // This command must work even if gb_InitSuccess == false
-    if (PASSWORD[0] != 0 && stricmp(gs8_CommandBuffer, "EXIT") == 0)
+    if (PASSWORD[0] != 0 && strcasecmp(gs8_CommandBuffer, "EXIT") == 0)
     {
         gu64_LastPasswd = 0;
         Utils::Print("You have logged out.\r\n");
@@ -481,20 +515,20 @@ void OnCommandReceived(bool b_PasswordValid)
   
     if (gb_InitSuccess)
     {
-        if (stricmp(gs8_CommandBuffer, "CLEAR") == 0)
+        if (strcasecmp(gs8_CommandBuffer, "CLEAR") == 0)
         {
             ClearEeprom();
             return;
         }
     
-        if (stricmp(gs8_CommandBuffer, "LIST") == 0)
+        if (strcasecmp(gs8_CommandBuffer, "LIST") == 0)
         {
             UserManager::ListAllUsers();
             return;
         }
 
         #if USE_DESFIRE
-            if (stricmp(gs8_CommandBuffer, "RESTORE") == 0)
+            if (strncasecmp(gs8_CommandBuffer, "RESTORE") == 0)
             {
                 if (RestoreDesfireCard()) Utils::Print("Restore success\r\n");
                 else                      Utils::Print("Restore failed\r\n");
@@ -502,7 +536,7 @@ void OnCommandReceived(bool b_PasswordValid)
                 return;
             }
 
-            if (stricmp(gs8_CommandBuffer, "MAKERANDOM") == 0)
+            if (strncasecmp(gs8_CommandBuffer, "MAKERANDOM") == 0)
             {
                 if (MakeRandomCard()) Utils::Print("MakeRandom success\r\n");
                 else                  Utils::Print("MakeRandom failed\r\n");
@@ -511,7 +545,7 @@ void OnCommandReceived(bool b_PasswordValid)
             }
 
             #if COMPILE_SELFTEST > 0
-                if (stricmp(gs8_CommandBuffer, "TEST") == 0)
+                if (strncasecmp(gs8_CommandBuffer, "TEST") == 0)
                 {
                     gi_PN532.SetDebugLevel(COMPILE_SELFTEST);
                     if (gi_PN532.Selftest()) Utils::Print("\r\nSelftest success\r\n");
@@ -523,7 +557,7 @@ void OnCommandReceived(bool b_PasswordValid)
             #endif
         #endif
     
-        if (strnicmp(gs8_CommandBuffer, "ADD", 3) == 0)
+        if (strncasecmp(gs8_CommandBuffer, "ADD", 3) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 3, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -535,7 +569,7 @@ void OnCommandReceived(bool b_PasswordValid)
             return;
         }
     
-        if (strnicmp(gs8_CommandBuffer, "DEL", 3) == 0)
+        if (strncasecmp(gs8_CommandBuffer, "DEL", 3) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 3, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -546,7 +580,7 @@ void OnCommandReceived(bool b_PasswordValid)
             return;
         }    
 
-        if (strnicmp(gs8_CommandBuffer, "DOOR12", 6) == 0) // FIRST !!!
+        if (strncasecmp(gs8_CommandBuffer, "DOOR12", 6) == 0) // FIRST !!!
         {
             if (!ParseParameter(gs8_CommandBuffer + 6, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -556,7 +590,7 @@ void OnCommandReceived(bool b_PasswordValid)
 
             return;
         }    
-        if (strnicmp(gs8_CommandBuffer, "DOOR1", 5) == 0) // AFTER !!!
+        if (strncasecmp(gs8_CommandBuffer, "DOOR1", 5) == 0) // AFTER !!!
         {
             if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -566,7 +600,7 @@ void OnCommandReceived(bool b_PasswordValid)
 
             return;
         }    
-        if (strnicmp(gs8_CommandBuffer, "DOOR2", 5) == 0)
+        if (strncasecmp(gs8_CommandBuffer, "DOOR2", 5) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -622,7 +656,7 @@ void OnCommandReceived(bool b_PasswordValid)
         Utils::Print("Compiled for Mifare Classic cards (not recommended, use only for testing)\r\n");
     #endif
 
-    int s32_MaxUsers = EEPROM.length() / sizeof(kUser);
+    int s32_MaxUsers = EEPROM_SIZE / sizeof(kUser);
     char Buf[80];
     sprintf(Buf, "Max %d users with a max name length of %d chars fit into the EEPROM\r\n", s32_MaxUsers, NAME_BUF_SIZE - 1);
     Utils::Print(Buf);
@@ -693,7 +727,7 @@ void AddCardToEeprom(const char* s8_UserName)
     // First the entire memory of s8_Name is filled with random data.
     // Then the username + terminating zero is written over it.
     // The result is for example: s8_Name[NAME_BUF_SIZE] = { 'P', 'e', 't', 'e', 'r', 0, 0xDE, 0x45, 0x70, 0x5A, 0xF9, 0x11, 0xAB }
-    // The string operations like stricmp() will only read up to the terminating zero, 
+    // The string operations like strncasecmp() will only read up to the terminating zero, 
     // but the application master key is derived from user name + random data.
     Utils::GenerateRandom((byte*)k_User.s8_Name, NAME_BUF_SIZE);
     strcpy(k_User.s8_Name, s8_UserName);
@@ -933,25 +967,29 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
     SetLED(LED_GREEN);
     if (k_User.u8_Flags & DOOR_ONE)
     {
-        Utils::WritePin(DOOR_1_PIN, HIGH);
-        LongDelay(OPEN_INTERVAL);
+        door_open_timer = OPEN_INTERVAL;
         Utils::WritePin(DOOR_1_PIN, LOW);
+       // LongDelay(OPEN_INTERVAL);
+       // Utils::WritePin(DOOR_1_PIN, LOW);
     }
-    if ((k_User.u8_Flags & DOOR_BOTH) == DOOR_BOTH)
-    {
-        LongDelay(500); // make a pause between activation of the relais
-    }
+   // if ((k_User.u8_Flags & DOOR_BOTH) == DOOR_BOTH)
+   // {
+   //     LongDelay(500); // make a pause between activation of the relais
+   // }
     if (k_User.u8_Flags & DOOR_TWO)
     {
-        Utils::WritePin(DOOR_2_PIN, HIGH);
-        LongDelay(OPEN_INTERVAL);
+        door_open_timer = OPEN_INTERVAL;
         Utils::WritePin(DOOR_2_PIN, LOW);
+     //   LongDelay(OPEN_INTERVAL);
+     //   Utils::WritePin(DOOR_2_PIN, LOW);
     }
     LongDelay(1000);
-    SetLED(LED_OFF);
+    
 
     // Avoid that the door is opened twice when the card is in the RF field for a longer time.
     gu64_LastID = u64_ID;
+    
+
 }
 
 // returns the voltage at the given pin in Volt multiplied with 10
