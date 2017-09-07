@@ -15,6 +15,7 @@
 // ********************************************************************************/
 
 #include <Arduino.h>
+#include "DoorOpenerSketch.h"
 
 #if USE_HARDWARE_SPI
     #include <SPI.h>  // Hardware SPI bus
@@ -117,7 +118,7 @@ public:
         // Initialize the I2C pins
         static inline void Begin() 
         {
-            Wire.begin(22,21);
+            Wire.begin(I2C_SDA_PIN,I2C_SCL_PIN);
         }
         // --------------------- READ -------------------------
         // Read the requested amount of bytes at once from the I2C bus into an internal buffer.
