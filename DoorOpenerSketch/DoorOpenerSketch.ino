@@ -44,39 +44,9 @@
 #define PASSWORD  ""
 // The interval of inactivity in minutes after which the password must be entered again (automatic log-off)
 #define PASSWORD_TIMEOUT  5
+#define TARGET_MODULE esp32
+#include "DoorOPenerSketch.h"
 
-// This Arduino / Teensy pin is connected to the relay that opens the door 1
-#define DOOR_1_PIN       13  //esp32
-
-// This Arduino / Teensy pin is connected to the optional relay that opens the door 2
-#define DOOR_2_PIN       12  //esp32
-
-// This Arduino / Teensy pin is connected to the transistor that charges the battery
-#define CHARGE_PIN       36  //esp32
-
-// This Arduino / Teensy pin is connected to the PN532 RSTPDN pin (reset the PN532)
-// When a communication error with the PN532 is detected the board is reset automatically.
-#define RESET_PIN         34  //esp32
-// The software SPI SCK  pin (Clock)
-#define SPI_CLK_PIN       18  //esp32
-// The software SPI MISO pin (Master In, Slave Out)
-#define SPI_MISO_PIN      19  //esp32
-// The software SPI MOSI pin (Master Out, Slave In)
-#define SPI_MOSI_PIN      23  //esp32
-// The software SPI SSEL pin (Chip Select)
-#define SPI_CS_PIN        05  //esp32
- 
-// This Arduino / Teensy pin is connected to the green LED in a two color LED.
-// The green LED flashes fast while no card is present and flashes 1 second when opening the door.
-#define LED_GREEN_PIN    25  //esp32
-
-// This Arduino / Teensy pin is connected to the red LED in a two color LED.
-// The red LED flashes slowly when a communication error occurred with the PN532 chip and when an unauthorized person tries to open the door.
-// It flashes fast when a power failure has been detected. (Charging battery failed)
-#define LED_RED_PIN      26  //esp32
-
-// This Arduino / Teensy pin is connected to the voltage divider that measures the 13,6V battery voltage
-#define VOLTAGE_MEASURE_PIN  A7 //esp32 port 35
 
 // Use 12 bit resolution for the analog input (ADC)
 // The Teensy 3.x boards have a 12 bit ADC.
@@ -102,7 +72,6 @@
 // The SPI bus speed is throttled to 10 kHz, which allows to transmit the data over a long cable, but this obviously makes reading the card slower.
 #define RF_OFF_INTERVAL  1000
 
-#define EEPROM_SIZE  1984
 
 // ######################################################################################
 
@@ -170,7 +139,9 @@ int32_t   door_open_timer = 0;       // this is a count down timer at zero close
 
 void setup() 
 {
-    Utils::Print("Starting");
+    // Open USB serial port
+    SerialClass::Begin(115200);
+    Utils::Print("Setup Starting");
     EEPROM.begin(EEPROM_SIZE);
 
     gs8_CommandBuffer[0] = 0;
@@ -200,14 +171,16 @@ void setup()
     // Software SPI is configured to run a slow clock of 10 kHz which can be transmitted over longer cables.
 //    gi_PN532.InitSoftwareSPI(SPI_CLK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN, SPI_CS_PIN, RESET_PIN);
 
-    // Open USB serial port
-    SerialClass::Begin(115200);
-
+      gi_PN532.InitI2C(RESET_PIN);
+Utils::Print("Setup midle");
     InitReader(false);
+
 
     #if USE_DESFIRE
         gi_PiccMasterKey.SetKeyData(SECRET_PICC_MASTER_KEY, sizeof(SECRET_PICC_MASTER_KEY), CARD_KEY_VERSION);
     #endif
+    Utils::Print("Setup Ending");
+
 }
 
 void loop()
