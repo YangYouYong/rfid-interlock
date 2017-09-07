@@ -24,8 +24,8 @@
 enum eUserFlags
 {
     DOOR_ONE  = 1,
-    DOOR_TWO  = 2,
-    DOOR_BOTH = DOOR_ONE | DOOR_TWO,
+    ADMIN  = 2,
+    SUPER_ADMIN = DOOR_ONE | ADMIN,
 };
 
 // This structure is stored in EEPROM for each user
@@ -186,12 +186,12 @@ public:
         // The ID may be 4 or 7 bytes long
         Utils::PrintHexBuf(pk_User->ID.u8, 7);
 
-        switch (pk_User->u8_Flags & DOOR_BOTH)
+        switch (pk_User->u8_Flags & SUPER_ADMIN)
         {
             case DOOR_ONE:  Utils::Print("   (door 1)\r\n");            break;
-            case DOOR_TWO:  Utils::Print("   (door 2)\r\n");            break;
-            case DOOR_BOTH: Utils::Print("   (door 1 + 2)\r\n");        break;
-            default:        Utils::Print("   (no door specified)\r\n"); break;
+            case ADMIN:  Utils::Print("   (Admin)\r\n");            break;
+            case SUPER_ADMIN: Utils::Print("   (Super Admin)\r\n");        break;
+            default:        Utils::Print("   (Disabled)\r\n"); break;
         }
     }
 

@@ -553,17 +553,17 @@ void OnCommandReceived(bool b_PasswordValid)
             return;
         }    
 
-        if (strncasecmp(gs8_CommandBuffer, "DOOR12", 6) == 0) // FIRST !!!
+        if (strncasecmp(gs8_CommandBuffer, "SUPER", 4) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 6, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
           
-            if (!UserManager::SetUserFlags(s8_Parameter, DOOR_BOTH))
+            if (!UserManager::SetUserFlags(s8_Parameter, SUPER_ADMIN))
                 Utils::Print("Error: User not found.\r\n");
 
             return;
         }    
-        if (strncasecmp(gs8_CommandBuffer, "DOOR1", 5) == 0) // AFTER !!!
+        if (strncasecmp(gs8_CommandBuffer, "DOOR1", 5) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -573,12 +573,12 @@ void OnCommandReceived(bool b_PasswordValid)
 
             return;
         }    
-        if (strncasecmp(gs8_CommandBuffer, "DOOR2", 5) == 0)
+        if (strncasecmp(gs8_CommandBuffer, "ADMIN", 5) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
           
-            if (!UserManager::SetUserFlags(s8_Parameter, DOOR_TWO))
+            if (!UserManager::SetUserFlags(s8_Parameter, ADMIN))
                 Utils::Print("Error: User not found.\r\n");
 
             return;
@@ -593,9 +593,9 @@ void OnCommandReceived(bool b_PasswordValid)
         Utils::Print(" ADD    {user}  : Add a user and his card to the EEPROM\r\n");
         Utils::Print(" DEL    {user}  : Delete a user and his card from the EEPROM\r\n");
         Utils::Print(" LIST           : List all users that are stored in the EEPROM\r\n");    
-        Utils::Print(" DOOR1  {user}  : Open only door 1 for this user\r\n");
-        Utils::Print(" DOOR2  {user}  : Open only door 2 for this user\r\n");
-        Utils::Print(" DOOR12 {user}  : Open both doors for this user\r\n");
+        Utils::Print(" DOOR1  {user}  : Open door 1 for this user\r\n");
+        Utils::Print(" ADMIN  {user}  : Make user Admin who can add users\r\n");
+        Utils::Print(" SUPER  {user}  : Make user Super who can add admins\r\n");
         
         #if USE_DESFIRE
             Utils::Print(" RESTORE        : Removes the master key and the application from the card\r\n");
@@ -922,11 +922,11 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
         Utils::Print(s8_Buf);
     #endif
 
-    switch (k_User.u8_Flags & DOOR_BOTH)
+    switch (k_User.u8_Flags & SUPER_ADMIN)
     {
         case DOOR_ONE:  Utils::Print("Opening door 1 for ");     break;
-        case DOOR_TWO:  Utils::Print("Opening door 2 for ");     break;
-        case DOOR_BOTH: Utils::Print("Opening door 1 + 2 for "); break;
+        case ADMIN:  Utils::Print("Opening door 2 for ");     break;
+        case SUPER_ADMIN: Utils::Print("Opening door 1 + 2 for "); break;
         default:        Utils::Print("No door specified for ");  break;
     }
     Utils::Print(k_User.s8_Name);
@@ -945,16 +945,13 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
        // LongDelay(OPEN_INTERVAL);
        // Utils::WritePin(DOOR_1_PIN, LOW);
     }
-   // if ((k_User.u8_Flags & DOOR_BOTH) == DOOR_BOTH)
-   // {
-   //     LongDelay(500); // make a pause between activation of the relais
-   // }
-    if (k_User.u8_Flags & DOOR_TWO)
+    if ((k_User.u8_Flags & SUPER_ADMIN) == SUPER_ADMIN)
     {
-        door_open_timer = OPEN_INTERVAL;
-        Utils::WritePin(DOOR_2_PIN, LOW);
-     //   LongDelay(OPEN_INTERVAL);
-     //   Utils::WritePin(DOOR_2_PIN, LOW);
+       // lets make a new admin
+    }
+    if (k_User.u8_Flags & ADMIN)
+    {
+        // lets make a new user
     }
     LongDelay(1000);
     
