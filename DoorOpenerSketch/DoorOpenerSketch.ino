@@ -696,6 +696,14 @@ void AddCardToEeprom(const char* s8_UserName)
     kCard k_Card;   
     if (!WaitForCard(&k_User, &k_Card))
         return;
+
+    if (strncasecmp(s8_UserName, "USE_CARD_ID", 11) == 0)
+    {
+      // we should use card id number as user anme
+      
+    } else {
+    strcpy(k_User.s8_Name, s8_UserName);
+    }
      
     // First the entire memory of s8_Name is filled with random data.
     // Then the username + terminating zero is written over it.
@@ -703,8 +711,9 @@ void AddCardToEeprom(const char* s8_UserName)
     // The string operations like strncasecmp() will only read up to the terminating zero, 
     // but the application master key is derived from user name + random data.
     Utils::GenerateRandom((byte*)k_User.s8_Name, NAME_BUF_SIZE);
-    strcpy(k_User.s8_Name, s8_UserName);
 
+
+    
     // Utils::Print("User + Random data: ");
     // Utils::PrintHexBuf((byte*)k_User.s8_Name, NAME_BUF_SIZE, LF);
 
