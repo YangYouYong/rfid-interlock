@@ -30,9 +30,9 @@
   #define SPI_CS_PIN        05  
   #define LED_GREEN_PIN     25  
   #define LED_RED_PIN       26  
-  #define VOLTAGE_MEASURE_PIN  A7   
+  #define VOLTAGE_MEASURE_PIN  A0   
 
   #define EEPROM_SIZE  1984
 
 #endif
-
+#include "string.h"

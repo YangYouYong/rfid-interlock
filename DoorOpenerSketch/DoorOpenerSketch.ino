@@ -1,11 +1,9 @@
-
-
 /**************************************************************************
-    
+
   @author   Elmü
   DIY electronic RFID Door Lock with Battery Backup (2016)
 
-  Check for a new version of this code on 
+  Check for a new version of this code on
   http://www.codeproject.com/Articles/1096861/DIY-electronic-RFID-Door-Lock-with-Battery-Backup
 
 **************************************************************************/
@@ -13,7 +11,7 @@
 // This is the most important switch: It defines if you want to use Mifare Classic or Desfire EV1 cards.
 // If you set this define to false the users will only be identified by the UID of a Mifare Classic or Desfire card.
 // This mode is only for testing if you have no Desfire cards available.
-// Mifare Classic cards have been cracked due to a badly implemented encryption. 
+// Mifare Classic cards have been cracked due to a badly implemented encryption.
 // It is easy to clone a Mifare Classic card (including it's UID).
 // You should use Defire EV1 cards for any serious door access system.
 // When using Desfire EV1 cards a 16 byte data block is stored in the card's EEPROM memory that can only be read with the application master key.
@@ -44,7 +42,7 @@
 #define PASSWORD  ""
 // The interval of inactivity in minutes after which the password must be entered again (automatic log-off)
 #define PASSWORD_TIMEOUT  5
-#define TARGET_MODULE esp32
+#define TARGET_MODULE esp8266
 #include "DoorOPenerSketch.h"
 
 
@@ -83,7 +81,7 @@
         #error "Switch the compiler to CPU Speed = '24 MHz optimized'"
     #endif
 #else
-    #warning "This code has not been tested on any other board than Teensy 3.1 / 3.2"
+    #warning "This code has not.2"
 #endif
 
 #if USE_DESFIRE
@@ -94,11 +92,11 @@
         #define DESFIRE_KEY_TYPE   DES
         #define DEFAULT_APP_KEY    gi_PN532.DES3_DEFAULT_KEY
     #endif
-    
+
     #include "Desfire.h"
     #include "Secrets.h"
     #include "Buffer.h"
-    Desfire          gi_PN532; // The class instance that communicates with Mifare Desfire cards   
+    Desfire          gi_PN532; // The class instance that communicates with Mifare Desfire cards
     DESFIRE_KEY_TYPE gi_PiccMasterKey;
 #else
     #include "Classic.h"
@@ -126,18 +124,18 @@ struct kCard
     byte     u8_UidLength;   // UID = 4 or 7 bytes
     byte     u8_KeyVersion;  // for Desfire random ID cards
     bool      b_PN532_Error; // true -> the error comes from the PN532, false -> crypto error
-    eCardType e_CardType;    
+    eCardType e_CardType;
 };
 
 // global variables
 char       gs8_CommandBuffer[500];  // Stores commands typed by the user via Terminal and the password
 uint32_t   gu32_CommandPos = 0;     // Index in gs8_CommandBuffer
 uint64_t   gu64_LastPasswd = 0;     // Timestamp when the user has enetered the password successfully
-uint64_t   gu64_LastID     = 0;     // The last card UID that has been read by the RFID reader  
+uint64_t   gu64_LastID     = 0;     // The last card UID that has been read by the RFID reader
 bool       gb_InitSuccess  = false; // true if the PN532 has been initialized successfully
 int32_t   door_open_timer = 0;       // this is a count down timer at zero close the door +ve value opne it
 
-void setup() 
+void setup()
 {
     // Open USB serial port
     SerialClass::Begin(115200);
@@ -146,20 +144,20 @@ void setup()
 
     gs8_CommandBuffer[0] = 0;
 
-    Utils::SetPinMode(DOOR_1_PIN, OUTPUT);  
-    Utils::WritePin  (DOOR_1_PIN, HIGH);      
+    Utils::SetPinMode(DOOR_1_PIN, OUTPUT);
+    Utils::WritePin  (DOOR_1_PIN, HIGH);
 
-    Utils::SetPinMode(DOOR_2_PIN, OUTPUT);  
-    Utils::WritePin  (DOOR_2_PIN, HIGH);      
+    Utils::SetPinMode(DOOR_2_PIN, OUTPUT);
+    Utils::WritePin  (DOOR_2_PIN, HIGH);
 
-    Utils::SetPinMode(CHARGE_PIN, OUTPUT);  
-    Utils::WritePin  (CHARGE_PIN, LOW);      
+    Utils::SetPinMode(CHARGE_PIN, OUTPUT);
+    Utils::WritePin  (CHARGE_PIN, LOW);
 
-    Utils::SetPinMode(LED_GREEN_PIN, OUTPUT);      
+    Utils::SetPinMode(LED_GREEN_PIN, OUTPUT);
     Utils::SetPinMode(LED_RED_PIN,   OUTPUT);
     Utils::SetPinMode(LED_BUILTIN,   OUTPUT);
-    
-    // A longer pause is required to assure that the condensator at VOLTAGE_MEASURE_PIN 
+
+    // A longer pause is required to assure that the condensator at VOLTAGE_MEASURE_PIN
     // has been charged before the battery voltage is measured for the first time.
     FlashLED(LED_GREEN, 1000);
 
@@ -169,9 +167,9 @@ void setup()
 //    analogReference(INTERNAL1V2);
 
     // Software SPI is configured to run a slow clock of 10 kHz which can be transmitted over longer cables.
-//    gi_PN532.InitSoftwareSPI(SPI_CLK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN, SPI_CS_PIN, RESET_PIN);
+    gi_PN532.InitSoftwareSPI(SPI_CLK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN, SPI_CS_PIN, RESET_PIN);
 
-      gi_PN532.InitI2C(RESET_PIN);
+//      gi_PN532.InitI2C(RESET_PIN);
 Utils::Print("Setup midle");
     InitReader(false);
 
@@ -184,9 +182,9 @@ Utils::Print("Setup midle");
 }
 
 void loop()
-{   
+{
     bool b_KeyPress  = ReadKeyboardInput();
-    bool b_VoltageOK = CheckBattery();   
+    bool b_VoltageOK = CheckBattery();
 
     uint64_t u64_StartTick = Utils::GetMillis64();
 
@@ -207,10 +205,10 @@ void loop()
         char Buf[80];
         sprintf(Buf, "Keeping Door(s) open for %ldms\r\n", door_open_timer);
         Utils::Print(Buf);
-      
+
     }
-    
-    
+
+
     if (gb_InitSuccess)
     {
         // While the user is typing do not read the card to avoid delays and debug output.
@@ -221,11 +219,11 @@ void loop()
         }
 
         // Turn on the RF field for 100 ms then turn it off for one second (RF_OFF_INTERVAL) to safe battery
-        
+
          if ((int)(u64_StartTick - u64_LastRead) < RF_OFF_INTERVAL)
             return;
     }
-    
+
 
     do // pseudo loop (just used for aborting with break;)
     {
@@ -251,27 +249,27 @@ void loop()
             {
                 FlashLED(LED_RED, 1000);
             }
-            
+
             Utils::Print("> ");
             break;
         }
 
         // No card present in the RF field
-        if (k_Card.u8_UidLength == 0) 
+        if (k_Card.u8_UidLength == 0)
         {
             gu64_LastID = 0;
-    
+
             // Flash the green LED shortly. On Power Failure flash the red LED shortly.
             FlashLED(b_VoltageOK ? LED_GREEN : LED_RED, 20);
             break;
         }
 
         // Still the same card present
-      /*  if (gu64_LastID == k_User.ID.u64) 
+      /*  if (gu64_LastID == k_User.ID.u64)
             break;
 
            we need the card to be pernimently present
-      */  
+      */
         // A different card was found in the RF field
         // OpenDoor() needs the RF field to be ON (for CheckDesfireSecret())
       	OpenDoor(k_User.ID.u64, &k_Card, u64_StartTick);
@@ -300,14 +298,14 @@ void InitReader(bool b_ShowError)
     do // pseudo loop (just used for aborting with break;)
     {
         gb_InitSuccess = false;
-      
+
         // Reset the PN532
         gi_PN532.begin(); // delay > 400 ms
-    
+
         byte IC, VersionHi, VersionLo, Flags;
         if (!gi_PN532.GetFirmwareVersion(&IC, &VersionHi, &VersionLo, &Flags))
             break;
-    
+
         char Buf[80];
         sprintf(Buf, "Chip: PN5%02X, Firmware version: %d.%d\r\n", IC, VersionHi, VersionLo);
         Utils::Print(Buf);
@@ -315,26 +313,26 @@ void InitReader(bool b_ShowError)
                                                                                 (Flags & 2) ? "Yes" : "No",
                                                                                 (Flags & 4) ? "Yes" : "No");
         Utils::Print(Buf);
-         
+
         // Set the max number of retry attempts to read from a card.
         // This prevents us from waiting forever for a card, which is the default behaviour of the PN532.
         if (!gi_PN532.SetPassiveActivationRetries())
             break;
-        
+
         // configure the PN532 to read RFID tags
         if (!gi_PN532.SamConfig())
             break;
-    
+
         gb_InitSuccess = true;
     }
     while (false);
 
     if (b_ShowError)
     {
-        LongDelay(2000); // a long interval to make the LED flash very slowly        
+        LongDelay(2000); // a long interval to make the LED flash very slowly
         SetLED(LED_OFF);
         LongDelay(100);
-    }  
+    }
 }
 
 // If everything works correctly, the green LED will flash shortly (20 ms).
@@ -353,18 +351,18 @@ void FlashLED(eLED e_LED, int s32_Interval)
 
 void SetLED(eLED e_LED)
 {
-    Utils::WritePin(LED_RED_PIN,   LOW);  
+    Utils::WritePin(LED_RED_PIN,   LOW);
     Utils::WritePin(LED_GREEN_PIN, LOW);
     Utils::WritePin(LED_BUILTIN,   LOW);
 
     switch (e_LED)
     {
-        case LED_RED:   
-            Utils::WritePin(LED_RED_PIN, HIGH); 
+        case LED_RED:
+            Utils::WritePin(LED_RED_PIN, HIGH);
             Utils::WritePin(LED_BUILTIN, HIGH); // LED on Teensy
             break;
-        case LED_GREEN: 
-            Utils::WritePin(LED_GREEN_PIN, HIGH); 
+        case LED_GREEN:
+            Utils::WritePin(LED_GREEN_PIN, HIGH);
             Utils::WritePin(LED_BUILTIN,   HIGH); // LED on Teensy
             break;
         default:  // Just to avoid stupid gcc compiler warning
@@ -385,10 +383,10 @@ bool ReadKeyboardInput()
         b_KeyPress = true;
         // Check if the password must be entered
         bool b_PasswordValid = PASSWORD[0] == 0 || (u64_Now - gu64_LastPasswd) < (PASSWORD_TIMEOUT * 60 * 1000);
-      
+
         byte u8_Char = SerialClass::Read();
-        char s8_Echo[] = { (char)u8_Char, 0 };        
-        
+        char s8_Echo[] = { (char)u8_Char, 0 };
+
         if (u8_Char == '\r' || u8_Char == '\n')
         {
             OnCommandReceived(b_PasswordValid);
@@ -398,7 +396,7 @@ bool ReadKeyboardInput()
 
         if (u8_Char == 8) // backslash
         {
-            if (gu32_CommandPos > 0) 
+            if (gu32_CommandPos > 0)
             {
                 gu32_CommandPos --;
                 Utils::Print(s8_Echo); // Terminal Echo
@@ -413,7 +411,7 @@ bool ReadKeyboardInput()
         // Terminal Echo
         if (b_PasswordValid) Utils::Print(s8_Echo);
         else                 Utils::Print("*"); // don't display the password chars in the Terminal
-        
+
         if (gu32_CommandPos >= sizeof(gs8_CommandBuffer))
         {
             Utils::Print("ERROR: Command too long\r\n");
@@ -421,8 +419,8 @@ bool ReadKeyboardInput()
         }
 
         gs8_CommandBuffer[gu32_CommandPos++] = u8_Char;
-    } 
-    return b_KeyPress;  
+    }
+    return b_KeyPress;
 }
 
 void OnCommandReceived(bool b_PasswordValid)
@@ -431,7 +429,7 @@ void OnCommandReceived(bool b_PasswordValid)
     char* s8_Parameter;
 
     gs8_CommandBuffer[gu32_CommandPos++] = 0;
-    gu32_CommandPos = 0;    
+    gu32_CommandPos = 0;
     Utils::Print(LF);
 
     if (!b_PasswordValid)
@@ -441,7 +439,7 @@ void OnCommandReceived(bool b_PasswordValid)
         {
             Utils::Print("Invalid password.\r\n");
             LongDelay(500);
-            return;           
+            return;
         }
 
         Utils::Print("Welcome to the access authorization terminal.\r\n");
@@ -452,7 +450,7 @@ void OnCommandReceived(bool b_PasswordValid)
     gu64_LastPasswd = Utils::GetMillis64() + PASSWORD_OFFSET_MS;
 
     // This command must work even if gb_InitSuccess == false
-    if (strncasecmp(gs8_CommandBuffer, "DEBUG", 5) == 0)
+    if (Utils::strncasecmp(gs8_CommandBuffer, "DEBUG", 5) == 0)
     {
         if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 1, 1))
             return;
@@ -462,10 +460,10 @@ void OnCommandReceived(bool b_PasswordValid)
             Utils::Print("Invalid debug level.\r\n");
             return;
         }
-      
+
         gi_PN532.SetDebugLevel(s8_Parameter[0] - '0');
         return;
-    }    
+    }
 
     // This command must work even if gb_InitSuccess == false
     if (strcasecmp(gs8_CommandBuffer, "RESET") == 0)
@@ -476,7 +474,7 @@ void OnCommandReceived(bool b_PasswordValid)
             Utils::Print("PN532 initialized successfully\r\n"); // The chip has reponded (ACK) as expected
             return;
         }
-    }   
+    }
 
     // This command must work even if gb_InitSuccess == false
     if (PASSWORD[0] != 0 && strcasecmp(gs8_CommandBuffer, "EXIT") == 0)
@@ -484,8 +482,8 @@ void OnCommandReceived(bool b_PasswordValid)
         gu64_LastPasswd = 0;
         Utils::Print("You have logged out.\r\n");
         return;
-    }   
-  
+    }
+
     if (gb_InitSuccess)
     {
         if (strcasecmp(gs8_CommandBuffer, "CLEAR") == 0)
@@ -493,7 +491,7 @@ void OnCommandReceived(bool b_PasswordValid)
             ClearEeprom();
             return;
         }
-    
+
         if (strcasecmp(gs8_CommandBuffer, "LIST") == 0)
         {
             UserManager::ListAllUsers();
@@ -501,7 +499,7 @@ void OnCommandReceived(bool b_PasswordValid)
         }
 
         #if USE_DESFIRE
-            if (strncasecmp(gs8_CommandBuffer, "RESTORE") == 0)
+            if (Utils::strncasecmp(gs8_CommandBuffer, "RESTORE") == 0)
             {
                 if (RestoreDesfireCard()) Utils::Print("Restore success\r\n");
                 else                      Utils::Print("Restore failed\r\n");
@@ -509,7 +507,7 @@ void OnCommandReceived(bool b_PasswordValid)
                 return;
             }
 
-            if (strncasecmp(gs8_CommandBuffer, "MAKERANDOM") == 0)
+            if (Utils::strncasecmp(gs8_CommandBuffer, "MAKERANDOM") == 0)
             {
                 if (MakeRandomCard()) Utils::Print("MakeRandom success\r\n");
                 else                  Utils::Print("MakeRandom failed\r\n");
@@ -518,7 +516,7 @@ void OnCommandReceived(bool b_PasswordValid)
             }
 
             #if COMPILE_SELFTEST > 0
-                if (strncasecmp(gs8_CommandBuffer, "TEST") == 0)
+                if (Utils::strncasecmp(gs8_CommandBuffer, "TEST") == 0)
                 {
                     gi_PN532.SetDebugLevel(COMPILE_SELFTEST);
                     if (gi_PN532.Selftest()) Utils::Print("\r\nSelftest success\r\n");
@@ -529,8 +527,8 @@ void OnCommandReceived(bool b_PasswordValid)
                 }
             #endif
         #endif
-    
-        if (strncasecmp(gs8_CommandBuffer, "ADD", 3) == 0)
+
+        if (Utils::strncasecmp(gs8_CommandBuffer, "ADD", 3) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 3, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -541,62 +539,62 @@ void OnCommandReceived(bool b_PasswordValid)
             gi_PN532.SwitchOffRfField();
             return;
         }
-    
-        if (strncasecmp(gs8_CommandBuffer, "DEL", 3) == 0)
+
+        if (Utils::strncasecmp(gs8_CommandBuffer, "DEL", 3) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 3, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
-          
+
             if (!UserManager::DeleteUser(0, s8_Parameter))
                 Utils::Print("Error: User not found.\r\n");
-                
-            return;
-        }    
 
-        if (strncasecmp(gs8_CommandBuffer, "SUPER", 4) == 0)
+            return;
+        }
+
+        if (Utils::strncasecmp(gs8_CommandBuffer, "SUPER", 4) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 6, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
-          
+
             if (!UserManager::SetUserFlags(s8_Parameter, SUPER_ADMIN))
                 Utils::Print("Error: User not found.\r\n");
 
             return;
-        }    
-        if (strncasecmp(gs8_CommandBuffer, "DOOR1", 5) == 0)
+        }
+        if (Utils::strncasecmp(gs8_CommandBuffer, "DOOR1", 5) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
-          
+
             if (!UserManager::SetUserFlags(s8_Parameter, DOOR_ONE))
                 Utils::Print("Error: User not found.\r\n");
 
             return;
-        }    
-        if (strncasecmp(gs8_CommandBuffer, "ADMIN", 5) == 0)
+        }
+        if (Utils::strncasecmp(gs8_CommandBuffer, "ADMIN", 5) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
-          
+
             if (!UserManager::SetUserFlags(s8_Parameter, ADMIN))
                 Utils::Print("Error: User not found.\r\n");
 
             return;
-        }    
+        }
 
         if (strlen(gs8_CommandBuffer))
             Utils::Print("Invalid command.\r\n\r\n");
         // else: The user pressed only ENTER
 
         Utils::Print("Usage:\r\n");
-        Utils::Print(" CLEAR          : Clear all users and their cards from the EEPROM\r\n");    
+        Utils::Print(" CLEAR          : Clear all users and their cards from the EEPROM\r\n");
         Utils::Print(" ADD    {user}  : Add a user and his card to the EEPROM\r\n");
         Utils::Print(" DEL    {user}  : Delete a user and his card from the EEPROM\r\n");
-        Utils::Print(" LIST           : List all users that are stored in the EEPROM\r\n");    
+        Utils::Print(" LIST           : List all users that are stored in the EEPROM\r\n");
         Utils::Print(" DOOR1  {user}  : Open door 1 for this user\r\n");
         Utils::Print(" ADMIN  {user}  : Make user Admin who can add users\r\n");
         Utils::Print(" SUPER  {user}  : Make user Super who can add admins\r\n");
-        
+
         #if USE_DESFIRE
             Utils::Print(" RESTORE        : Removes the master key and the application from the card\r\n");
             Utils::Print(" MAKERANDOM     : Converts the card into a Random ID card (FOREVER!)\r\n");
@@ -641,7 +639,7 @@ void OnCommandReceived(bool b_PasswordValid)
     sprintf(Buf, "Battery voltage: %d.%d Volt\r\n",  (int)(u32_Volt/10), (int)(u32_Volt%10));
     Utils::Print(Buf);
 
-    Utils::Print("System is running since ");   
+    Utils::Print("System is running since ");
     Utils::PrintInterval(Utils::GetMillis64(), LF);
 }
 
@@ -658,7 +656,7 @@ bool ParseParameter(char* s8_Command, char** ps8_Parameter, int minLength, int m
 
     // Trim spaces at the begin
     while (s8_Command[P] == ' ')
-    { 
+    {
         P++;
     }
 
@@ -671,7 +669,7 @@ bool ParseParameter(char* s8_Command, char** ps8_Parameter, int minLength, int m
         s32_Len--;
         s8_Param[s32_Len] = 0;
     }
-    
+
     if (s32_Len > maxLength)
     {
         Utils::Print("Parameter too long.\r\n");
@@ -681,8 +679,8 @@ bool ParseParameter(char* s8_Command, char** ps8_Parameter, int minLength, int m
     {
         Utils::Print("Parameter too short.\r\n");
         return false;
-    }    
-    
+    }
+
     *ps8_Parameter = s8_Param;
     return true;
 }
@@ -693,38 +691,38 @@ bool ParseParameter(char* s8_Command, char** ps8_Parameter, int minLength, int m
 void AddCardToEeprom(const char* s8_UserName)
 {
     kUser k_User;
-    kCard k_Card;   
+    kCard k_Card;
     if (!WaitForCard(&k_User, &k_Card))
         return;
 
-    if (strncasecmp(s8_UserName, "USE_CARD_ID", 11) == 0)
+    if (Utils::strncasecmp(s8_UserName, "USE_CARD_ID", 11) == 0)
     {
       // we should use card id number as user anme
-      
+
     } else {
     strcpy(k_User.s8_Name, s8_UserName);
     }
-     
+
     // First the entire memory of s8_Name is filled with random data.
     // Then the username + terminating zero is written over it.
     // The result is for example: s8_Name[NAME_BUF_SIZE] = { 'P', 'e', 't', 'e', 'r', 0, 0xDE, 0x45, 0x70, 0x5A, 0xF9, 0x11, 0xAB }
-    // The string operations like strncasecmp() will only read up to the terminating zero, 
+    // The string operations like strncasecmp() will only read up to the terminating zero,
     // but the application master key is derived from user name + random data.
     Utils::GenerateRandom((byte*)k_User.s8_Name, NAME_BUF_SIZE);
 
 
-    
+
     // Utils::Print("User + Random data: ");
     // Utils::PrintHexBuf((byte*)k_User.s8_Name, NAME_BUF_SIZE, LF);
 
-    kUser k_Found;  
+    kUser k_Found;
     if (UserManager::FindUser(k_User.ID.u64, &k_Found))
     {
         Utils::Print("This card has already been stored for user ");
         Utils::Print(k_Found.s8_Name, LF);
         return;
     }
-  
+
     #if USE_DESFIRE
         if ((k_Card.e_CardType & CARD_Desfire) == 0)
         {
@@ -737,7 +735,7 @@ void AddCardToEeprom(const char* s8_UserName)
 
         if (k_Card.e_CardType != CARD_DesRandom)
         {
-            // The secret stored in a file on the card is not required when using a card with random ID 
+            // The secret stored in a file on the card is not required when using a card with random ID
             // because obtaining the real card UID already requires the PICC master key. This is enough security.
             if (!StoreDesfireSecret(&k_User))
             {
@@ -777,13 +775,13 @@ bool WaitForKeyYesNo()
             Utils::Print("Aborted.\r\n");
             return false;
         }
-            
+
         if  (c_Char == 'y' || c_Char == 'Y')
              return true;
 
         CheckBattery();
 		delay(200);
-    } 
+    }
 }
 
 // Waits for the user to approximate the card to the reader
@@ -793,7 +791,7 @@ bool WaitForCard(kUser* pk_User, kCard* pk_Card)
 {
     Utils::Print("Please approximate the card to the reader now!\r\nYou have 30 seconds. Abort with ESC.\r\n");
     uint64_t u64_Start = Utils::GetMillis64();
-    
+
     while (true)
     {
         if (ReadCard(pk_User->ID.u8, pk_Card) && pk_Card->u8_UidLength > 0)
@@ -805,7 +803,7 @@ bool WaitForCard(kUser* pk_User, kCard* pk_Card)
             Utils::Print("Processing... (please do not remove the card)\r\n");
             return true;
         }
-      
+
         if ((Utils::GetMillis64() - u64_Start) > 30000)
         {
             Utils::Print("Timeout waiting for card.\r\n");
@@ -830,7 +828,7 @@ bool WaitForCard(kUser* pk_User, kCard* pk_Card)
 bool ReadCard(byte u8_UID[8], kCard* pk_Card)
 {
     memset(pk_Card, 0, sizeof(kCard));
-  
+
     if (!gi_PN532.ReadPassiveTargetID(u8_UID, &pk_Card->u8_UidLength, &pk_Card->e_CardType))
     {
         pk_Card->b_PN532_Error = true;
@@ -842,7 +840,7 @@ bool ReadCard(byte u8_UID[8], kCard* pk_Card)
         #if USE_DESFIRE
             if (!AuthenticatePICC(&pk_Card->u8_KeyVersion))
                 return false;
-        
+
             // replace the random ID with the real UID
             if (!gi_PN532.GetRealCardID(u8_UID))
                 return false;
@@ -850,7 +848,7 @@ bool ReadCard(byte u8_UID[8], kCard* pk_Card)
             pk_Card->u8_UidLength = 7; // random ID is only 4 bytes
         #else
             Utils::Print("Cards with random ID are not supported in Classic mode.\r\n");
-            return false;    
+            return false;
         #endif
     }
     return true;
@@ -865,7 +863,7 @@ bool IsDesfireTimeout()
         if (gi_PN532.GetLastPN532Error() == 0x01) // Timeout
         {
             Utils::Print("A Timeout mostly means that the card is too far away from the reader.\r\n");
-            
+
             // In this special case we make a short pause only because someone tries to open the door -> don't let him wait unnecessarily.
             FlashLED(LED_RED, 200);
             return true;
@@ -877,7 +875,7 @@ bool IsDesfireTimeout()
 // b_PiccAuth = true if random ID card with successful authentication with SECRET_PICC_MASTER_KEY
 void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
 {
-    kUser k_User;  
+    kUser k_User;
     if (!UserManager::FindUser(u64_ID, &k_User))
     {
         Utils::Print("Unknown person tries to open the door: ");
@@ -897,7 +895,7 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
         if (pk_Card->e_CardType == CARD_DesRandom) // random ID Desfire card
         {
             // In case of a random ID card the authentication has already been done in ReadCard().
-            // But ReadCard() may also authenticate with the factory default DES key, so we must check here 
+            // But ReadCard() may also authenticate with the factory default DES key, so we must check here
             // that SECRET_PICC_MASTER_KEY has been used for authentication.
             if (pk_Card->u8_KeyVersion != CARD_KEY_VERSION)
             {
@@ -912,7 +910,7 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
             {
                 if (IsDesfireTimeout()) // Prints additional error message and blinks the red LED
                     return;
-    
+
                 Utils::Print("The card is not personalized.\r\n");
                 FlashLED(LED_RED, 1000);
                 return;
@@ -963,11 +961,11 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
         // lets make a new user
     }
     LongDelay(1000);
-    
+
 
     // Avoid that the door is opened twice when the card is in the RF field for a longer time.
     gu64_LastID = u64_ID;
-    
+
 
 }
 
@@ -981,16 +979,16 @@ uint32_t MeasureVoltage(byte u8_Pin)
 }
 
 // returns true if the battery voltage is OK (between 13 and 14 Volt)
-// The perfect voltage for a 12V lead-acid battery is 13,6V. 
+// The perfect voltage for a 12V lead-acid battery is 13,6V.
 // This voltage guarantees the longest possible life of the battery.
-// This function must be called very frequently because at this voltage the battery has a high impedance 
+// This function must be called very frequently because at this voltage the battery has a high impedance
 // and the voltage rises very quickly when charging with 200mA
 bool CheckBattery()
 {
     uint32_t u32_Volt = MeasureVoltage(VOLTAGE_MEASURE_PIN);
     if (u32_Volt > 136)
         Utils::WritePin(CHARGE_PIN, LOW); // Stop charging
-    
+
     if (u32_Volt < 136)
         Utils::WritePin(CHARGE_PIN, HIGH); // Start charging
 
@@ -1045,7 +1043,7 @@ bool AuthenticatePICC(byte* pu8_KeyVersion)
 bool GenerateDesfireSecrets(kUser* pk_User, DESFireKey* pi_AppMasterKey, byte u8_StoreValue[16])
 {
     // The buffer is initialized to zero here
-    byte u8_Data[24] = {0}; 
+    byte u8_Data[24] = {0};
 
     // Copy the 7 byte card UID into the buffer
     memcpy(u8_Data, pk_User->ID.u8, 7);
@@ -1065,7 +1063,7 @@ bool GenerateDesfireSecrets(kUser* pk_User, DESFireKey* pi_AppMasterKey, byte u8
     if (!i_3KDes.SetKeyData(SECRET_APPLICATION_KEY, sizeof(SECRET_APPLICATION_KEY), 0) || // set a 24 byte key (168 bit)
         !i_3KDes.CryptDataCBC(CBC_SEND, KEY_ENCIPHER, u8_AppMasterKey, u8_Data, 24))
         return false;
-    
+
     if (!i_3KDes.SetKeyData(SECRET_STORE_VALUE_KEY, sizeof(SECRET_STORE_VALUE_KEY), 0) || // set a 24 byte key (168 bit)
         !i_3KDes.CryptDataCBC(CBC_SEND, KEY_ENCIPHER, u8_StoreValue, u8_Data, 16))
         return false;
@@ -1088,7 +1086,7 @@ bool CheckDesfireSecret(kUser* pk_User)
     if (!gi_PN532.SelectApplication(0x000000)) // PICC level
         return false;
 
-    byte u8_Version; 
+    byte u8_Version;
     if (!gi_PN532.GetKeyVersion(0, &u8_Version))
         return false;
 
@@ -1141,7 +1139,7 @@ bool StoreDesfireSecret(kUser* pk_User)
 {
     if (CARD_APPLICATION_ID == 0x000000 || CARD_KEY_VERSION == 0)
         return false; // severe errors in Secrets.h -> abort
-  
+
     DESFIRE_KEY_TYPE i_AppMasterKey;
     byte u8_StoreValue[16];
     if (!GenerateDesfireSecrets(pk_User, &i_AppMasterKey, u8_StoreValue))
@@ -1190,22 +1188,22 @@ bool StoreDesfireSecret(kUser* pk_User)
 
     // Write the StoreValue into that file
     if (!gi_PN532.WriteFileData(CARD_FILE_ID, 0, 16, u8_StoreValue))
-        return false;       
-  
+        return false;
+
     return true;
 }
 
-// If you have already written the master key to a card and want to use the card for another purpose 
+// If you have already written the master key to a card and want to use the card for another purpose
 // you can restore the master key with this function. Additionally the application SECRET_APPLICATION_ID is deleted.
 // If a user has been stored in the EEPROM for this card he will also be deleted.
 bool RestoreDesfireCard()
 {
     kUser k_User;
-    kCard k_Card;  
+    kCard k_Card;
     if (!WaitForCard(&k_User, &k_Card))
         return false;
 
-    UserManager::DeleteUser(k_User.ID.u64, NULL);    
+    UserManager::DeleteUser(k_User.ID.u64, NULL);
 
     if ((k_Card.e_CardType & CARD_Desfire) == 0)
     {
@@ -1221,7 +1219,7 @@ bool RestoreDesfireCard()
     if (u8_KeyVersion == 0)
         return true;
 
-    // An error in DeleteApplication must not abort. 
+    // An error in DeleteApplication must not abort.
     // The key change below is more important and must always be executed.
     bool b_Success = gi_PN532.DeleteApplicationIfExists(CARD_APPLICATION_ID);
     if (!b_Success)
@@ -1230,7 +1228,7 @@ bool RestoreDesfireCard()
         if (!gi_PN532.Authenticate(0, &gi_PiccMasterKey))
             return false;
     }
-    
+
     if (!gi_PN532.ChangeKey(0, &gi_PN532.DES2_DEFAULT_KEY, NULL))
         return false;
 
@@ -1246,9 +1244,9 @@ bool MakeRandomCard()
     Utils::Print("\r\nATTENTION: Configuring the card to send a random ID cannot be reversed.\r\nThe card will be a random ID card FOREVER!\r\nIf you are really sure what you are doing hit 'Y' otherwise hit 'N'.\r\n\r\n");
     if (!WaitForKeyYesNo())
         return false;
-    
+
     kUser k_User;
-    kCard k_Card;  
+    kCard k_Card;
     if (!WaitForCard(&k_User, &k_Card))
         return false;
 
@@ -1266,5 +1264,3 @@ bool MakeRandomCard()
 }
 
 #endif // USE_DESFIRE
-
-

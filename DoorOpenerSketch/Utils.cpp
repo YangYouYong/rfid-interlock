@@ -7,6 +7,10 @@
 
 #include "Utils.h"
 
+
+
+
+
 // Utils::Print("Hello World", LF); --> prints "Hello World\r\n"
 void Utils::Print(const char* s8_Text, const char* s8_LF) //=NULL
 {
@@ -185,5 +189,8 @@ uint32_t Utils::CalcCrc32(const byte* u8_Data, int s32_Length, uint32_t u32_Crc)
     }
     return u32_Crc;
 }
+
+
+
 
 

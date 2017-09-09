@@ -9,9 +9,9 @@
 // ATTENTION: Only one of the following defines must be set to true!
 // NOTE: In Software SPI mode there is no external libraray required. Only 4 regular digital pins are used.
 // If you want to transfer the code to another processor the easiest way will be to use Software SPI mode.
-#define USE_SOFTWARE_SPI   false
+#define USE_SOFTWARE_SPI   true
 #define USE_HARDWARE_SPI   false
-#define USE_HARDWARE_I2C   true
+#define USE_HARDWARE_I2C   false
 // ********************************************************************************/
 
 #include <Arduino.h>
@@ -154,9 +154,31 @@ public:
 
 // -------------------------------------------------------------------------------------------------------------------
 
+// extra stuff for compatability
+#include <string.h>
+#include <ctype.h>
+
 class Utils
 {
 public:
+
+
+    static inline int strncasecmp(const char *s1, const char *s2, unsigned int n)
+{
+       if (n == 0)
+               return 0;
+
+       while ((n-- != 0)
+               && (tolower(*(unsigned char *) s1) ==
+                       tolower(*(unsigned char *) s2))) {
+               if (n == 0 || *s1 == '\0' || *s2 == '\0')
+                       return 0;
+               s1++;
+               s2++;
+       }
+
+       return tolower(*(unsigned char *) s1) - tolower(*(unsigned char *) s2);
+}
     // returns the current tick counter
 	// When you compile the code for Linux, Windows or any other platform you must change this function.
 	// On Windows use GetTickCount() here
