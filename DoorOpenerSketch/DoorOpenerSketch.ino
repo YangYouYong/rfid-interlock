@@ -119,38 +119,31 @@ uint32_t   gu32_CommandPos = 0;     // Index in gs8_CommandBuffer
 uint64_t   gu64_LastPasswd = 0;     // Timestamp when the user has enetered the password successfully
 uint64_t   gu64_LastID     = 0;     // The last card UID that has been read by the RFID reader
 bool       gb_InitSuccess  = false; // true if the PN532 has been initialized successfully
-int32_t   door_open_timer = 0;       // this is a count down timer at zero close the door +ve value opne it
+int32_t    door_open_timer = 0;       // this is a count down timer at zero close the door +ve value opne it
+bool       is_machine_enabled = false;  //this is the current state of the machine
 
 void setup()
 {
-    // Open USB serial port
     SerialClass::Begin(115200);
-    
-    Utils::Print("!Setup Starting");
+    Utils::Print("Setup Starting");
     EEPROM.begin(EEPROM_SIZE);
 
     gs8_CommandBuffer[0] = 0;
 
-
- lcd.init();                      // initialize the lcd 
-  // Print a message to the LCD.
-  lcd.backlight();
-  lcd.setCursor(0,0);
-  lcd.print("SAW Table Access");
-  lcd.setCursor(0,1);
-  lcd.print("S.London Makersp");
-
+    lcd.init();                      // initialize the lcd 
+    // Print a message to the LCD.
+    lcd.backlight();
+    lcd.setCursor(0,0);
+    lcd.print("SAW Table Access");
+    lcd.setCursor(0,1);
+    lcd.print("S.London Makersp");
 
     Utils::SetPinMode(DOOR_1_PIN, OUTPUT);
     Utils::WritePin  (DOOR_1_PIN, HIGH);
-
-
-
+    
     // Software SPI is configured to run a slow clock of 10 kHz which can be transmitted over longer cables.
     gi_PN532.InitSoftwareSPI(SPI_CLK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN, SPI_CS_PIN, RESET_PIN);
 
-//      gi_PN532.InitI2C(RESET_PIN);
-Utils::Print("Setup midle");
     InitReader(false);
 
 
@@ -164,27 +157,41 @@ Utils::Print("Setup midle");
 void loop()
 {
       //LongDelay(1000);
-      //Utils::Print("Slooping");
 
     bool b_KeyPress  = ReadKeyboardInput();
-
     uint64_t u64_StartTick = Utils::GetMillis64();
-
     static uint64_t u64_LastRead = 0;
 
     // lets manage closing the door
     LongDelay(100);
     door_open_timer = door_open_timer - 100;
-    if ( door_open_timer <= 0 )
+    if ( door_open_timer < 0 )
     {
+      // Time to turn off the machine
       door_open_timer = 0;
+
+      if (is_machine_enabled)
+      {
       Utils::WritePin(DOOR_1_PIN, HIGH);
-      //Utils::Print("Closing Door(s)", LF);
+      Utils::Print("Closing Door(s)", LF);
+      is_machine_enabled = false;      
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("SAW Table Disbled");
+      lcd.setCursor(0,1);
+      lcd.print("Waiting 4 Token");
+      }
     } else
     {
-        char Buf[80];
-        sprintf(Buf, "Keeping Door(s) open for %ldms\r\n", door_open_timer);
-        Utils::Print(Buf);
+      char Buf[80];
+      sprintf(Buf, "Keeping Door(s) open for %ldms\r\n", door_open_timer);
+      Utils::Print(Buf);
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("SAW Table Active");
+      lcd.setCursor(0,1);
+      sprintf(Buf, "Timeout: %ldms", door_open_timer);
+      lcd.print(Buf);
 
     }
 
@@ -308,21 +315,12 @@ void InitReader(bool b_ShowError)
 
     if (b_ShowError)
     {
+      
         LongDelay(100);
     }
 }
 
-// If everything works correctly, the green LED will flash shortly (20 ms).
-// If the LED does not flash permanently this means that there is a severe error.
-// Additionally the LED will flash long (for 1 second) when the door is opened.
-// -----------------------------------------------------------------------------
-// The red LED shows a communication error with the PN532 (flash very slow),
-// or someone not authorized trying to open the door (flash for 1 second)
-// or on power failure the red LED flashes shortly.
 
-// Checks if the user has typed anything in the Terminal program and stores it in gs8_CommandBuffer
-// Execute the command when Enter has been hit.
-// returns true if any key has been pressed since the last call to this function.
 bool ReadKeyboardInput()
 {
     uint64_t u64_Now = Utils::GetMillis64() + PASSWORD_OFFSET_MS;
@@ -889,8 +887,7 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
     {
         door_open_timer = OPEN_INTERVAL;
         Utils::WritePin(DOOR_1_PIN, LOW);
-       // LongDelay(OPEN_INTERVAL);
-       // Utils::WritePin(DOOR_1_PIN, LOW);
+       is_machine_enabled = true;
     }
     if ((k_User.u8_Flags & SUPER_ADMIN) == SUPER_ADMIN)
     {
