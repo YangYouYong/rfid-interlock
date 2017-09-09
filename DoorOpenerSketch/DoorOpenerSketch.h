@@ -20,19 +20,15 @@
 #endif
 
 #if TARGET_MODULE == esp8266
-  #define DOOR_1_PIN        16 //16  //d0
-  #define DOOR_2_PIN        16 //12  
-  #define CHARGE_PIN        16  
-  #define RESET_PIN         14//12  //3 //rx 
-  #define SPI_CLK_PIN       15  //d5 
-  #define SPI_MISO_PIN      13  //d6
-  #define SPI_MOSI_PIN      12  //d7
-  #define SPI_CS_PIN        2  //d8
-  #define LED_GREEN_PIN     16 //0  
-  #define LED_RED_PIN       16 //2  
-  #define VOLTAGE_MEASURE_PIN  A0   
-  #define I2C_SCL_PIN       5//5  //d1
-  #define I2C_SDA_PIN       4 //4  //d2
+  #define DOOR_1_PIN        16 
+  #define RESET_PIN         2
+  #define SPI_CLK_PIN       15
+  #define SPI_MISO_PIN      13
+  #define SPI_MOSI_PIN      12
+  #define SPI_CS_PIN        14
+  
+  #define I2C_SCL_PIN       5
+  #define I2C_SDA_PIN       4
   #define EEPROM_SIZE  1984
 
 #endif

@@ -73,17 +73,6 @@
 
 // ######################################################################################
 
-#if defined(__MK20DX256__) // the CPU of the Teensy 3.1 / 3.2
-    #if !defined(USB_SERIAL)
-        #error "Switch the compiler to USB Type = 'Serial'"
-    #endif
-    #if F_CPU != 24000000
-        #error "Switch the compiler to CPU Speed = '24 MHz optimized'"
-    #endif
-#else
-    #warning "This code has not.2"
-#endif
-
 #if USE_DESFIRE
     #if USE_AES
         #define DESFIRE_KEY_TYPE   AES
@@ -115,12 +104,6 @@ LiquidCrystal_I2C lcd(0x27,16,2);
 // because gu64_LastPasswd is initialized with 0 and must always be in the past.
 #define PASSWORD_OFFSET_MS   (2 * PASSWORD_TIMEOUT * 60 * 1000)
 
-enum eLED
-{
-    LED_OFF,
-    LED_RED,
-    LED_GREEN,
-};
 
 struct kCard
 {
@@ -142,8 +125,6 @@ void setup()
 {
     // Open USB serial port
     SerialClass::Begin(115200);
-    //Serial.begin(74880);
-    //Serial.println("!Setup Stststarting");
     
     Utils::Print("!Setup Starting");
     EEPROM.begin(EEPROM_SIZE);
@@ -163,24 +144,7 @@ void setup()
     Utils::SetPinMode(DOOR_1_PIN, OUTPUT);
     Utils::WritePin  (DOOR_1_PIN, HIGH);
 
-    Utils::SetPinMode(DOOR_2_PIN, OUTPUT);
-    Utils::WritePin  (DOOR_2_PIN, HIGH);
 
-    Utils::SetPinMode(CHARGE_PIN, OUTPUT);
-    Utils::WritePin  (CHARGE_PIN, LOW);
-
-    Utils::SetPinMode(LED_GREEN_PIN, OUTPUT);
-    Utils::SetPinMode(LED_RED_PIN,   OUTPUT);
-    Utils::SetPinMode(LED_BUILTIN,   OUTPUT);
-
-    // A longer pause is required to assure that the condensator at VOLTAGE_MEASURE_PIN
-    // has been charged before the battery voltage is measured for the first time.
-    FlashLED(LED_GREEN, 1000);
-
-    // Use 12 bit resolution for the analog input (ADC)
-//    analogReadResolution(ANALOG_RESOLUTION);
-    // Use the internal reference voltage (1.2V) as analog reference
-//    analogReference(INTERNAL1V2);
 
     // Software SPI is configured to run a slow clock of 10 kHz which can be transmitted over longer cables.
     gi_PN532.InitSoftwareSPI(SPI_CLK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN, SPI_CS_PIN, RESET_PIN);
@@ -203,7 +167,6 @@ void loop()
       //Utils::Print("Slooping");
 
     bool b_KeyPress  = ReadKeyboardInput();
-    bool b_VoltageOK = CheckBattery();
 
     uint64_t u64_StartTick = Utils::GetMillis64();
 
@@ -216,8 +179,6 @@ void loop()
     {
       door_open_timer = 0;
       Utils::WritePin(DOOR_1_PIN, HIGH);
-      Utils::WritePin(DOOR_2_PIN, HIGH);
-      SetLED(LED_OFF);
       //Utils::Print("Closing Door(s)", LF);
     } else
     {
@@ -266,7 +227,7 @@ void loop()
             }
             else // e.g. Error while authenticating with master key
             {
-                FlashLED(LED_RED, 1000);
+              // error
             }
 
             Utils::Print("> ");
@@ -279,7 +240,6 @@ void loop()
             gu64_LastID = 0;
 
             // Flash the green LED shortly. On Power Failure flash the red LED shortly.
-            FlashLED(b_VoltageOK ? LED_GREEN : LED_RED, 20);
             break;
         }
 
@@ -311,7 +271,6 @@ void InitReader(bool b_ShowError)
 {
     if (b_ShowError)
     {
-        SetLED(LED_RED);
         Utils::Print("Communication Error -> Reset PN532\r\n");
     }
 
@@ -349,8 +308,6 @@ void InitReader(bool b_ShowError)
 
     if (b_ShowError)
     {
-        LongDelay(2000); // a long interval to make the LED flash very slowly
-        SetLED(LED_OFF);
         LongDelay(100);
     }
 }
@@ -362,33 +319,6 @@ void InitReader(bool b_ShowError)
 // The red LED shows a communication error with the PN532 (flash very slow),
 // or someone not authorized trying to open the door (flash for 1 second)
 // or on power failure the red LED flashes shortly.
-void FlashLED(eLED e_LED, int s32_Interval)
-{
-    SetLED(e_LED);
-    LongDelay(s32_Interval);
-    SetLED(LED_OFF);
-}
-
-void SetLED(eLED e_LED)
-{
-    Utils::WritePin(LED_RED_PIN,   LOW);
-    Utils::WritePin(LED_GREEN_PIN, LOW);
-    Utils::WritePin(LED_BUILTIN,   LOW);
-
-    switch (e_LED)
-    {
-        case LED_RED:
-            Utils::WritePin(LED_RED_PIN, HIGH);
-            Utils::WritePin(LED_BUILTIN, HIGH); // LED on Teensy
-            break;
-        case LED_GREEN:
-            Utils::WritePin(LED_GREEN_PIN, HIGH);
-            Utils::WritePin(LED_BUILTIN,   HIGH); // LED on Teensy
-            break;
-        default:  // Just to avoid stupid gcc compiler warning
-            break;
-    }
-}
 
 // Checks if the user has typed anything in the Terminal program and stores it in gs8_CommandBuffer
 // Execute the command when Enter has been hit.
@@ -655,9 +585,7 @@ void OnCommandReceived(bool b_PasswordValid)
     Utils::Print("Terminal access is password protected: ");
     Utils::Print(PASSWORD[0] ? "Yes\r\n" : "No\r\n");
 
-    uint32_t u32_Volt = MeasureVoltage(VOLTAGE_MEASURE_PIN);
-    sprintf(Buf, "Battery voltage: %d.%d Volt\r\n",  (int)(u32_Volt/10), (int)(u32_Volt%10));
-    Utils::Print(Buf);
+ 
 
     Utils::Print("System is running since ");
     Utils::PrintInterval(Utils::GetMillis64(), LF);
@@ -799,7 +727,6 @@ bool WaitForKeyYesNo()
         if  (c_Char == 'y' || c_Char == 'Y')
              return true;
 
-        CheckBattery();
 		delay(200);
     }
 }
@@ -836,7 +763,6 @@ bool WaitForCard(kUser* pk_User, kCard* pk_Card)
             return false;
         }
 
-        CheckBattery();
     }
 }
 
@@ -884,8 +810,7 @@ bool IsDesfireTimeout()
         {
             Utils::Print("A Timeout mostly means that the card is too far away from the reader.\r\n");
 
-            // In this special case we make a short pause only because someone tries to open the door -> don't let him wait unnecessarily.
-            FlashLED(LED_RED, 200);
+
             return true;
         }
     #endif
@@ -900,7 +825,6 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
     {
         Utils::Print("Unknown person tries to open the door: ");
         Utils::PrintHexBuf((byte*)&u64_ID, 7, LF);
-        FlashLED(LED_RED, 1000);
         return;
     }
 
@@ -908,7 +832,6 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
         if ((pk_Card->e_CardType & CARD_Desfire) == 0)
         {
             Utils::Print("The card is not a Desfire card.\r\n");
-            FlashLED(LED_RED, 1000);
             return;
         }
 
@@ -920,7 +843,6 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
             if (pk_Card->u8_KeyVersion != CARD_KEY_VERSION)
             {
                 Utils::Print("The card is not personalized.\r\n");
-                FlashLED(LED_RED, 1000);
                 return;
             }
         }
@@ -932,7 +854,6 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
                     return;
 
                 Utils::Print("The card is not personalized.\r\n");
-                FlashLED(LED_RED, 1000);
                 return;
             }
         }
@@ -964,7 +885,6 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
         default:             Utils::Print(" (Classic card)",         LF); break;
     }
 
-    SetLED(LED_GREEN);
     if (k_User.u8_Flags & DOOR_ONE)
     {
         door_open_timer = OPEN_INTERVAL;
@@ -989,38 +909,14 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
 
 }
 
-// returns the voltage at the given pin in Volt multiplied with 10
-uint32_t MeasureVoltage(byte u8_Pin)
-{
-    const uint32_t maxValue = (1 << ANALOG_RESOLUTION) -1;  // == 4095 for 12 bit resolution
 
-    float value = 10.0 * analogRead(u8_Pin);
-    return (uint32_t)((value * ANALOG_REFERENCE * VOLTAGE_FACTOR) / maxValue);
-}
-
-// returns true if the battery voltage is OK (between 13 and 14 Volt)
-// The perfect voltage for a 12V lead-acid battery is 13,6V.
-// This voltage guarantees the longest possible life of the battery.
-// This function must be called very frequently because at this voltage the battery has a high impedance
-// and the voltage rises very quickly when charging with 200mA
-bool CheckBattery()
-{
-    uint32_t u32_Volt = MeasureVoltage(VOLTAGE_MEASURE_PIN);
-    if (u32_Volt > 136)
-        Utils::WritePin(CHARGE_PIN, LOW); // Stop charging
-
-    if (u32_Volt < 136)
-        Utils::WritePin(CHARGE_PIN, HIGH); // Start charging
-
-    return (u32_Volt >= 130 && u32_Volt < 140);
-}
 
 // Use this for delays > 100 ms to guarantee that the battery is checked frequently
 void LongDelay(int s32_Interval)
 {
     while(s32_Interval > 0)
     {
-        CheckBattery();
+       
 
         int s32_Delay = min(100, s32_Interval);
         Utils::DelayMilli(s32_Delay);
