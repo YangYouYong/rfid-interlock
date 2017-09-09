@@ -104,7 +104,10 @@
 #endif
 
 #include "UserManager.h"
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
 
+LiquidCrystal_I2C lcd(0x27,16,2);
 
 
 // The tick counter starts at zero when the CPU is reset.
@@ -139,10 +142,23 @@ void setup()
 {
     // Open USB serial port
     SerialClass::Begin(115200);
-    Utils::Print("Setup Starting");
+    //Serial.begin(74880);
+    //Serial.println("!Setup Stststarting");
+    
+    Utils::Print("!Setup Starting");
     EEPROM.begin(EEPROM_SIZE);
 
     gs8_CommandBuffer[0] = 0;
+
+
+ lcd.init();                      // initialize the lcd 
+  // Print a message to the LCD.
+  lcd.backlight();
+  lcd.setCursor(0,0);
+  lcd.print("SAW Table Access");
+  lcd.setCursor(0,1);
+  lcd.print("S.London Makersp");
+
 
     Utils::SetPinMode(DOOR_1_PIN, OUTPUT);
     Utils::WritePin  (DOOR_1_PIN, HIGH);
@@ -183,6 +199,9 @@ Utils::Print("Setup midle");
 
 void loop()
 {
+      //LongDelay(1000);
+      //Utils::Print("Slooping");
+
     bool b_KeyPress  = ReadKeyboardInput();
     bool b_VoltageOK = CheckBattery();
 
@@ -265,11 +284,11 @@ void loop()
         }
 
         // Still the same card present
-      /*  if (gu64_LastID == k_User.ID.u64)
-            break;
+      //  if (gu64_LastID == k_User.ID.u64)
+      //      break;
 
-           we need the card to be pernimently present
-      */
+      //     we need the card to be pernimently present
+      //
         // A different card was found in the RF field
         // OpenDoor() needs the RF field to be ON (for CheckDesfireSecret())
       	OpenDoor(k_User.ID.u64, &k_Card, u64_StartTick);
@@ -280,9 +299,10 @@ void loop()
     // Turn off the RF field to save battery
     // When the RF field is on,  the PN532 board consumes approx 110 mA.
     // When the RF field is off, the PN532 board consumes approx 18 mA.
-    /* dmki gi_PN532.SwitchOffRfField();
-    */
+    // dmki gi_PN532.SwitchOffRfField();
+    
     u64_LastRead = Utils::GetMillis64();
+
 }
 
 // Reset the PN532 chip and initialize, set gb_InitSuccess = true on success
