@@ -60,7 +60,7 @@
 #define VOLTAGE_FACTOR   15.9
 
 // The interval in milliseconds that the relay is powered which opens the door
-#define OPEN_INTERVAL   5000
+#define OPEN_INTERVAL   10000
 
 // This is the interval that the RF field is switched off to save battery.
 // The shorter this interval, the more power is consumed by the PN532.
@@ -150,13 +150,14 @@ void setup()
     #if USE_DESFIRE
         gi_PiccMasterKey.SetKeyData(SECRET_PICC_MASTER_KEY, sizeof(SECRET_PICC_MASTER_KEY), CARD_KEY_VERSION);
     #endif
+    LongDelay(1500); //show the spash screen
     Utils::Print("Setup Ending");
 
 }
 
 void loop()
 {
-      //LongDelay(1000);
+    //LongDelay(500);
 
     bool b_KeyPress  = ReadKeyboardInput();
     uint64_t u64_StartTick = Utils::GetMillis64();
@@ -757,14 +758,14 @@ bool WaitForKeyYesNo()
 // Fills in pk_Card competely, but writes only the UID to pk_User.
 bool WaitForCard(kUser* pk_User, kCard* pk_Card)
 {
-    Utils::Print("Please approximate the card to the reader now!\r\nYou have 30 seconds. Abort with ESC.\r\n");
+    Utils::Print("Please approximate the card to the reader now!\r\nYou have 5 seconds. Abort with ESC.\r\n");
     
     uint64_t u64_Start = Utils::GetMillis64();
 
     while (true)
     {
         lcd.setCursor(0,1);
-        lcd.print("Waiting 30s     ");
+        lcd.print("Waiting 5s     ");
         LongDelay(1000);
         if (ReadCard(pk_User->ID.u8, pk_Card) && pk_Card->u8_UidLength > 0)
         {
@@ -778,7 +779,7 @@ bool WaitForCard(kUser* pk_User, kCard* pk_Card)
             return true;
         }
 
-        if ((Utils::GetMillis64() - u64_Start) > 30000)
+        if ((Utils::GetMillis64() - u64_Start) > 5000)
         {
             Utils::Print("Timeout waiting for card.\r\n");
             lcd.setCursor(0,1);
