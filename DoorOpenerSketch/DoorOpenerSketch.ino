@@ -156,8 +156,9 @@ void setup()
 }
 
 void loop()
-{
-    //LongDelay(500);
+{   
+    gi_PN532.SwitchOffRfField();
+    LongDelay(333);
 
     bool b_KeyPress  = ReadKeyboardInput();
     uint64_t u64_StartTick = Utils::GetMillis64();
@@ -165,7 +166,7 @@ void loop()
 
     // lets manage closing the door
     LongDelay(100);
-    door_open_timer = door_open_timer - 100;
+    door_open_timer = door_open_timer - 500;
     if ( door_open_timer < 0 )
     {
       // Time to turn off the machine
