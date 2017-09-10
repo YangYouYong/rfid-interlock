@@ -65,6 +65,9 @@ void Utils::PrintHexBuf(const byte* u8_Data, const uint32_t u32_DataLen, const c
     if (s8_LF) Print(s8_LF);
 }
 
+
+
+
 // Converts an interval in milliseconds into days, hours, minutes and prints it
 void Utils::PrintInterval(uint64_t u64_Time, const char* s8_LF)
 {

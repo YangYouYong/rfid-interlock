@@ -169,28 +169,27 @@ void loop()
     {
       // Time to turn off the machine
       door_open_timer = 0;
+      lcd.setCursor(0,0);
+      lcd.print("SAW Table OFF   ");
+      lcd.setCursor(0,1);
+      lcd.print("Waiting 4 Token ");
 
       if (is_machine_enabled)
       {
       Utils::WritePin(DOOR_1_PIN, HIGH);
       Utils::Print("Closing Door(s)", LF);
       is_machine_enabled = false;      
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("SAW Table Disbled");
-      lcd.setCursor(0,1);
-      lcd.print("Waiting 4 Token");
+
       }
     } else
     {
       char Buf[80];
       sprintf(Buf, "Keeping Door(s) open for %ldms\r\n", door_open_timer);
       Utils::Print(Buf);
-      lcd.clear();
       lcd.setCursor(0,0);
-      lcd.print("SAW Table Active");
+      lcd.print("SAW Table ON!!    ");
       lcd.setCursor(0,1);
-      sprintf(Buf, "Timeout: %ldms", door_open_timer);
+      sprintf(Buf, "Timeout: %lds        ", door_open_timer/1000);
       lcd.print(Buf);
 
     }
@@ -480,8 +479,11 @@ void OnCommandReceived(bool b_PasswordValid)
         {
             if (!ParseParameter(gs8_CommandBuffer + 3, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
-
-            AddCardToEeprom(s8_Parameter);
+            Utils::Print("ADD cmd");
+            Utils::Print(s8_Parameter);
+            lcd.setCursor(0,0);
+            lcd.print("Scan User Token ");
+            AddCardToEeprom(s8_Parameter,DOOR_ONE);
 
             // Required! Otherwise the next ReadPassiveTargetId() does not detect the card and the door opens after adding a user.
             gi_PN532.SwitchOffRfField();
@@ -499,16 +501,6 @@ void OnCommandReceived(bool b_PasswordValid)
             return;
         }
 
-        if (Utils::strncasecmp(gs8_CommandBuffer, "SUPER", 4) == 0)
-        {
-            if (!ParseParameter(gs8_CommandBuffer + 6, &s8_Parameter, 3, NAME_BUF_SIZE -1))
-                return;
-
-            if (!UserManager::SetUserFlags(s8_Parameter, SUPER_ADMIN))
-                Utils::Print("Error: User not found.\r\n");
-
-            return;
-        }
         if (Utils::strncasecmp(gs8_CommandBuffer, "DOOR1", 5) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 3, NAME_BUF_SIZE -1))
@@ -525,6 +517,17 @@ void OnCommandReceived(bool b_PasswordValid)
                 return;
 
             if (!UserManager::SetUserFlags(s8_Parameter, ADMIN))
+                Utils::Print("Error: User not found.\r\n");
+
+            return;
+        }
+        
+        if (Utils::strncasecmp(gs8_CommandBuffer, "SUPER", 5) == 0)
+        {
+            if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 3, NAME_BUF_SIZE -1))
+                return;
+
+            if (!UserManager::SetUserFlags(s8_Parameter, SUPER))
                 Utils::Print("Error: User not found.\r\n");
 
             return;
@@ -634,38 +637,54 @@ bool ParseParameter(char* s8_Command, char** ps8_Parameter, int minLength, int m
 // ================================================================================
 
 // Stores a new user and his card in the EEPROM of the Teensy
-void AddCardToEeprom(const char* s8_UserName)
+void AddCardToEeprom( char* s8_UserName, byte userLevel)
 {
     kUser k_User;
     kCard k_Card;
     if (!WaitForCard(&k_User, &k_Card))
         return;
 
-    if (Utils::strncasecmp(s8_UserName, "USE_CARD_ID", 11) == 0)
+    if (Utils::strncasecmp(s8_UserName, "NO_NAME", 11) == 0)
     {
       // we should use card id number as user anme
-
-    } else {
-    strcpy(k_User.s8_Name, s8_UserName);
+      Utils::Print("We have a no  name\r\n");
+      char  user_Buf[2];
+      for (int i = 0; i < k_Card.u8_UidLength; i++)
+      {
+        sprintf(user_Buf,"%02X",k_User.ID.u8[i]);
+        s8_UserName[2*i]   = user_Buf[0];
+        s8_UserName[2*i+1] = user_Buf[1]; 
+      }
+      //terminate username with a zero
+      s8_UserName[k_Card.u8_UidLength*2] = 0;
     }
-
+    
+    
     // First the entire memory of s8_Name is filled with random data.
     // Then the username + terminating zero is written over it.
-    // The result is for example: s8_Name[NAME_BUF_SIZE] = { 'P', 'e', 't', 'e', 'r', 0, 0xDE, 0x45, 0x70, 0x5A, 0xF9, 0x11, 0xAB }
+    // Thesult is for example: s8_Name[NAME_BUF_SIZE] = { 'P', 'e', 't', 'e', 'r', 0, 0xDE, 0x45, 0x70, 0x5A, 0xF9, 0x11, 0xAB }
     // The string operations like strncasecmp() will only read up to the terminating zero,
     // but the application master key is derived from user name + random data.
     Utils::GenerateRandom((byte*)k_User.s8_Name, NAME_BUF_SIZE);
+     strcpy(k_User.s8_Name, s8_UserName);
+     Utils::Print("\r\nWe have a real name to check again\r\n");
+     Utils::Print(s8_UserName);
+     Utils::Print("\r\n");
+     Utils::Print(k_User.s8_Name);
 
 
-
-    // Utils::Print("User + Random data: ");
-    // Utils::PrintHexBuf((byte*)k_User.s8_Name, NAME_BUF_SIZE, LF);
+    Utils::Print("User + Random data: ");
+    Utils::PrintHexBuf((byte*)k_User.s8_Name, NAME_BUF_SIZE, LF);
 
     kUser k_Found;
     if (UserManager::FindUser(k_User.ID.u64, &k_Found))
     {
-        Utils::Print("This card has already been stored for user ");
+        Utils::Print("This card has already been stored for user ");        
         Utils::Print(k_Found.s8_Name, LF);
+        lcd.setCursor(0,0);
+        lcd.print("Error:          ");
+        lcd.setCursor(0,1);
+        lcd.print("Token Known     ");
         return;
     }
 
@@ -692,9 +711,13 @@ void AddCardToEeprom(const char* s8_UserName)
     #endif
 
     // By default a new user can open door one
-    k_User.u8_Flags = DOOR_ONE;
+    k_User.u8_Flags = userLevel;
 
     UserManager::StoreNewUser(&k_User);
+    lcd.setCursor(0,1);
+    lcd.print("Successful add  ");
+    LongDelay(2000);
+    
 }
 
 void ClearEeprom()
@@ -735,10 +758,14 @@ bool WaitForKeyYesNo()
 bool WaitForCard(kUser* pk_User, kCard* pk_Card)
 {
     Utils::Print("Please approximate the card to the reader now!\r\nYou have 30 seconds. Abort with ESC.\r\n");
+    
     uint64_t u64_Start = Utils::GetMillis64();
 
     while (true)
     {
+        lcd.setCursor(0,1);
+        lcd.print("Waiting 30s     ");
+        LongDelay(1000);
         if (ReadCard(pk_User->ID.u8, pk_Card) && pk_Card->u8_UidLength > 0)
         {
             // Avoid that later the door is opened for this card if the card is a long time in the RF field.
@@ -746,18 +773,24 @@ bool WaitForCard(kUser* pk_User, kCard* pk_Card)
 
             // All the stuff in this function takes about 2 seconds because the SPI bus speed has been throttled to 10 kHz.
             Utils::Print("Processing... (please do not remove the card)\r\n");
+            lcd.setCursor(0,1);
+            lcd.print("Processing...   ");
             return true;
         }
 
         if ((Utils::GetMillis64() - u64_Start) > 30000)
         {
             Utils::Print("Timeout waiting for card.\r\n");
+            lcd.setCursor(0,1);
+            lcd.print("Scan Timed Out!!");
             return false;
         }
 
         if (SerialClass::Read() == 27) // ESCAPE
         {
             Utils::Print("Aborted.\r\n");
+            lcd.setCursor(0,1);
+            lcd.print("Scan Aborted!!  ");
             return false;
         }
 
@@ -823,6 +856,9 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
     {
         Utils::Print("Unknown person tries to open the door: ");
         Utils::PrintHexBuf((byte*)&u64_ID, 7, LF);
+        lcd.setCursor(0,1);
+        lcd.print("Unknown Token   ");
+        
         return;
     }
 
@@ -868,11 +904,11 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
         Utils::Print(s8_Buf);
     #endif
 
-    switch (k_User.u8_Flags & SUPER_ADMIN)
+    switch (k_User.u8_Flags )
     {
-        case DOOR_ONE:  Utils::Print("Opening door 1 for ");     break;
-        case ADMIN:  Utils::Print("Opening door 2 for ");     break;
-        case SUPER_ADMIN: Utils::Print("Opening door 1 + 2 for "); break;
+        case DOOR_ONE:  Utils::Print("Activate Machine ");     break;
+        case ADMIN:  Utils::Print("Create new User ");     break;
+        case SUPER: Utils::Print("Create new Admin token "); break;
         default:        Utils::Print("No door specified for ");  break;
     }
     Utils::Print(k_User.s8_Name);
@@ -883,19 +919,31 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
         default:             Utils::Print(" (Classic card)",         LF); break;
     }
 
-    if (k_User.u8_Flags & DOOR_ONE)
+    if (k_User.u8_Flags == DOOR_ONE)
     {
-        door_open_timer = OPEN_INTERVAL;
-        Utils::WritePin(DOOR_1_PIN, LOW);
-       is_machine_enabled = true;
+      door_open_timer = OPEN_INTERVAL;
+      Utils::WritePin(DOOR_1_PIN, LOW);
+      is_machine_enabled = true;
+      char Buf[40];
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("SAW Table ON!!");
+      lcd.setCursor(0,1);
+      sprintf(Buf, "Timeout: %lds", door_open_timer/1000);
+      lcd.print(Buf);
     }
-    if ((k_User.u8_Flags & SUPER_ADMIN) == SUPER_ADMIN)
+    if (k_User.u8_Flags == SUPER)
     {
-       // lets make a new admin
+       lcd.setCursor(0,0);
+       lcd.print("Scan ADMIN Token");
+       AddCardToEeprom("NO_NAME", ADMIN);
+       
     }
-    if (k_User.u8_Flags & ADMIN)
+    if (k_User.u8_Flags == ADMIN)
     {
-        // lets make a new user
+       lcd.setCursor(0,0);
+       lcd.print("Scan User Token ");
+       AddCardToEeprom("NO_NAME", DOOR_ONE);
     }
     LongDelay(1000);
 
