@@ -42,7 +42,7 @@
 #define PASSWORD  ""
 // The interval of inactivity in minutes after which the password must be entered again (automatic log-off)
 #define PASSWORD_TIMEOUT  5
-#define TARGET_MODULE esp8266
+#define TARGET_MODULE esp32
 #include "DoorOPenerSketch.h"
 
 
@@ -93,11 +93,17 @@
 #endif
 
 #include "UserManager.h"
-#include <Wire.h> 
-#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+#include <hd44780.h>                       // main hd44780 header
+#include <hd44780ioClass/hd44780_I2Cexp.h> // i2c expander i/o class header
 
-LiquidCrystal_I2C lcd(0x27,16,2);
+hd44780_I2Cexp lcd; // declare lcd object: auto locate & config exapander chip
 
+
+
+// LCD geometry
+const int LCD_COLS = 20;
+const int LCD_ROWS = 4;
 
 // The tick counter starts at zero when the CPU is reset.
 // This interval is added to the 64 bit tick count to get a value that does not start at zero,
@@ -123,15 +129,26 @@ int32_t    door_open_timer = 0;       // this is a count down timer at zero clos
 bool       is_machine_enabled = false;  //this is the current state of the machine
 
 void setup()
-{
+{   
+    Serial.begin(115200);
+    Wire.begin();
+    int status;
     SerialClass::Begin(115200);
     Utils::Print("Setup Starting");
     EEPROM.begin(EEPROM_SIZE);
 
     gs8_CommandBuffer[0] = 0;
+    Utils::Print("Setup lcd setup");
+    status = lcd.begin(LCD_COLS, LCD_ROWS);
+    if(status) // non zero status means it was unsuccesful
+    {
+      status = -status; // convert negative status value to positive number
 
-    lcd.init();                      // initialize the lcd 
-    // Print a message to the LCD.
+      // begin() failed so blink error code using the onboard LED if possible
+      hd44780::fatalError(status); // does not return
+    }    // Print a message to the LCD.
+    Utils::Print("Setup lcd complete");
+    
     lcd.backlight();
     lcd.setCursor(0,0);
     lcd.print("SAW Table Access");
@@ -139,7 +156,7 @@ void setup()
     lcd.print("S.London Makersp");
 
     Utils::SetPinMode(DOOR_1_PIN, OUTPUT);
-    Utils::WritePin  (DOOR_1_PIN, HIGH);
+    Utils::WritePin  (DOOR_1_PIN, LOW);
     
     // Software SPI is configured to run a slow clock of 10 kHz which can be transmitted over longer cables.
     gi_PN532.InitSoftwareSPI(SPI_CLK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN, SPI_CS_PIN, RESET_PIN);
@@ -178,7 +195,7 @@ void loop()
 
       if (is_machine_enabled)
       {
-      Utils::WritePin(DOOR_1_PIN, HIGH);
+      Utils::WritePin(DOOR_1_PIN, LOW);
       Utils::Print("Closing Door(s)", LF);
       is_machine_enabled = false;      
 
@@ -924,7 +941,7 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
     if (k_User.u8_Flags == DOOR_ONE)
     {
       door_open_timer = OPEN_INTERVAL;
-      Utils::WritePin(DOOR_1_PIN, LOW);
+      Utils::WritePin(DOOR_1_PIN, HIGH);
       is_machine_enabled = true;
       char Buf[40];
       lcd.clear();

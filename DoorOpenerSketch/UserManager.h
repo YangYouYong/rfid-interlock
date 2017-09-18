@@ -228,9 +228,10 @@ private:
         for (uint32_t i=0; i<sizeof(kUser); i++)
         {
             EEPROM.write(P + i, pu8_Ptr[i]);
+            EEPROM.commit();
         }
         return true;
-        EEPROM.commit();
+        
     }
     
     // Reads one user from the EEPROM
