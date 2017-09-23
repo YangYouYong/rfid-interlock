@@ -60,7 +60,7 @@
 #define VOLTAGE_FACTOR   15.9
 
 // The interval in milliseconds that the relay is powered which opens the door
-#define OPEN_INTERVAL   10000
+#define OPEN_INTERVAL   12000
 
 // This is the interval that the RF field is switched off to save battery.
 // The shorter this interval, the more power is consumed by the PN532.
@@ -128,10 +128,14 @@ bool       gb_InitSuccess  = false; // true if the PN532 has been initialized su
 int32_t    door_open_timer = 0;       // this is a count down timer at zero close the door +ve value opne it
 bool       is_machine_enabled = false;  //this is the current state of the machine
 
+byte       open_door  = LOW;
+byte       close_door = HIGH;
+
+
 void setup()
 {   
     Serial.begin(115200);
-    Wire.begin();
+    Wire.begin(21,22);
     int status;
     SerialClass::Begin(115200);
     Utils::Print("Setup Starting");
@@ -156,11 +160,17 @@ void setup()
     lcd.print("S.London Makersp");
 
     Utils::SetPinMode(DOOR_1_PIN, OUTPUT);
-    Utils::WritePin  (DOOR_1_PIN, LOW);
+    Utils::WritePin(DOOR_1_PIN, close_door);
+
+    //Utils::SetPinMode(25, OUTPUT);
+    //Utils::WritePin  (25, LOW);
+    //    Utils::SetPinMode(26, OUTPUT);
+    //Utils::WritePin  (26, open_door);
     
     // Software SPI is configured to run a slow clock of 10 kHz which can be transmitted over longer cables.
-    gi_PN532.InitSoftwareSPI(SPI_CLK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN, SPI_CS_PIN, RESET_PIN);
-
+    //gi_PN532.InitSoftwareSPI(SPI_CLK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN, SPI_CS_PIN, RESET_PIN);
+    gi_PN532.InitHardwareSPI(5,34);
+    // gi_PN532.InitSpi(); 
     InitReader(false);
 
 
@@ -184,7 +194,8 @@ void loop()
     // lets manage closing the door
     LongDelay(100);
     door_open_timer = door_open_timer - 500;
-    if ( door_open_timer < 0 )
+    
+    if ( door_open_timer <= 0 )
     {
       // Time to turn off the machine
       door_open_timer = 0;
@@ -195,22 +206,25 @@ void loop()
 
       if (is_machine_enabled)
       {
-      Utils::WritePin(DOOR_1_PIN, LOW);
+      Utils::WritePin(DOOR_1_PIN, close_door);
       Utils::Print("Closing Door(s)", LF);
       is_machine_enabled = false;      
 
       }
-    } else
+    } else 
     {
       char Buf[80];
       sprintf(Buf, "Keeping Door(s) open for %ldms\r\n", door_open_timer);
       Utils::Print(Buf);
       lcd.setCursor(0,0);
       lcd.print("SAW Table ON!!    ");
-      lcd.setCursor(0,1);
-      sprintf(Buf, "Timeout: %lds        ", door_open_timer/1000);
-      lcd.print(Buf);
-
+      if ( door_open_timer < OPEN_INTERVAL - 2000)
+      {
+        lcd.setCursor(0,1);
+        sprintf(Buf, "Timeout: %lds        ", door_open_timer/1000);
+        lcd.print(Buf);
+        
+      }
     }
 
 
@@ -668,14 +682,26 @@ void AddCardToEeprom( char* s8_UserName, byte userLevel)
       // we should use card id number as user anme
       Utils::Print("We have a no  name\r\n");
       char  user_Buf[2];
+            Utils::Print("debug1");
+
       for (int i = 0; i < k_Card.u8_UidLength; i++)
       {
+                    Utils::Print("debug2");
+
         sprintf(user_Buf,"%02X",k_User.ID.u8[i]);
+                          Utils::Print("debug3");
+
         s8_UserName[2*i]   = user_Buf[0];
+                          Utils::Print("debug4");
+
         s8_UserName[2*i+1] = user_Buf[1]; 
+                          Utils::Print("debug5");
+
       }
+
       //terminate username with a zero
       s8_UserName[k_Card.u8_UidLength*2] = 0;
+
     }
     
     
@@ -783,7 +809,7 @@ bool WaitForCard(kUser* pk_User, kCard* pk_Card)
     while (true)
     {
         lcd.setCursor(0,1);
-        lcd.print("Waiting 5s     ");
+        lcd.print("Waiting 8s     ");
         LongDelay(1000);
         if (ReadCard(pk_User->ID.u8, pk_Card) && pk_Card->u8_UidLength > 0)
         {
@@ -797,7 +823,7 @@ bool WaitForCard(kUser* pk_User, kCard* pk_Card)
             return true;
         }
 
-        if ((Utils::GetMillis64() - u64_Start) > 5000)
+        if ((Utils::GetMillis64() - u64_Start) > 8000)
         {
             Utils::Print("Timeout waiting for card.\r\n");
             lcd.setCursor(0,1);
@@ -941,15 +967,13 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
     if (k_User.u8_Flags == DOOR_ONE)
     {
       door_open_timer = OPEN_INTERVAL;
-      Utils::WritePin(DOOR_1_PIN, HIGH);
+      Utils::WritePin(DOOR_1_PIN, open_door);
       is_machine_enabled = true;
       char Buf[40];
       lcd.clear();
       lcd.setCursor(0,0);
       lcd.print("SAW Table ON!!");
       lcd.setCursor(0,1);
-      sprintf(Buf, "Timeout: %lds", door_open_timer/1000);
-      lcd.print(Buf);
     }
     if (k_User.u8_Flags == SUPER)
     {
