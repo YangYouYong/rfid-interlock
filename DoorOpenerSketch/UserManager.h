@@ -228,8 +228,9 @@ private:
         for (uint32_t i=0; i<sizeof(kUser); i++)
         {
             EEPROM.write(P + i, pu8_Ptr[i]);
-            EEPROM.commit();
+            //EEPROM.commit();
         }
+        EEPROM.commit();
         return true;
         
     }

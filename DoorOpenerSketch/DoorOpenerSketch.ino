@@ -155,7 +155,7 @@ void setup()
     
     lcd.backlight();
     lcd.setCursor(0,0);
-    lcd.print("SAW Table Access");
+    lcd.print("Lathe Access");
     lcd.setCursor(0,1);
     lcd.print("S.London Makersp");
 
@@ -185,22 +185,21 @@ void setup()
 void loop()
 {   
     gi_PN532.SwitchOffRfField();
-    LongDelay(333);
+    LongDelay(200);
 
     bool b_KeyPress  = ReadKeyboardInput();
     uint64_t u64_StartTick = Utils::GetMillis64();
     static uint64_t u64_LastRead = 0;
 
-    // lets manage closing the door
-    LongDelay(100);
-    door_open_timer = door_open_timer - 500;
+
+    door_open_timer = door_open_timer - 200;
     
     if ( door_open_timer <= 0 )
     {
       // Time to turn off the machine
       door_open_timer = 0;
       lcd.setCursor(0,0);
-      lcd.print("SAW Table OFF   ");
+      lcd.print("Lathe OFF   ");
       lcd.setCursor(0,1);
       lcd.print("Waiting 4 Token ");
 
@@ -214,8 +213,8 @@ void loop()
     } else 
     {
       char Buf[80];
-      sprintf(Buf, "Keeping Door(s) open for %ldms\r\n", door_open_timer);
-      Utils::Print(Buf);
+      //sprintf(Buf, "Keeping Door(s) open for %ldms\r\n", door_open_timer);
+      //Utils::Print(Buf);
       lcd.setCursor(0,0);
       lcd.print("SAW Table ON!!    ");
       if ( door_open_timer < OPEN_INTERVAL - 2000)
@@ -674,6 +673,7 @@ void AddCardToEeprom( char* s8_UserName, byte userLevel)
 {
     kUser k_User;
     kCard k_Card;
+    char name_from_card[15] = "";
     if (!WaitForCard(&k_User, &k_Card))
         return;
 
@@ -681,27 +681,31 @@ void AddCardToEeprom( char* s8_UserName, byte userLevel)
     {
       // we should use card id number as user anme
       Utils::Print("We have a no  name\r\n");
-      char  user_Buf[2];
+     // char  user_Buf[2];
+     // s8_UserName = "";
             Utils::Print("debug1");
 
-      for (int i = 0; i < k_Card.u8_UidLength; i++)
-      {
-                    Utils::Print("debug2");
+     // for (int i = 0; i < 7; i++) //k_Card.u8_UidLength
+     // {
 
-        sprintf(user_Buf,"%02X",k_User.ID.u8[i]);
-                          Utils::Print("debug3");
-
-        s8_UserName[2*i]   = user_Buf[0];
-                          Utils::Print("debug4");
-
-        s8_UserName[2*i+1] = user_Buf[1]; 
-                          Utils::Print("debug5");
-
-      }
-
+       // sprintf(user_Buf, "%02X", k_User.ID.u8[i]);
+         //Utils::Print("debug4");
+        // name_from_card = name_from_card + user_Buf;
+        //s8_UserName[i] = user_Buf[0];
+        //Utils::Print("debug5");
+        //s8_UserName[i] = user_Buf[1];
+         //Utils::Print(user_Buf);
+         
+         
+         //Utils::Print(s8_UserName );
+      //}
       //terminate username with a zero
-      s8_UserName[k_Card.u8_UidLength*2] = 0;
-
+      //Utils::Print("debug5");
+      
+      //s8_UserName[15] = char(0);
+//      s8_UserName[k_Card.u8_UidLength*2] = 0;
+      //Utils::Print("debug6");
+      //for (int i = 0; i < 15; i++) {  s8_UserName[i] = name_from_card[i] }
     }
     
     
@@ -803,13 +807,16 @@ bool WaitForKeyYesNo()
 bool WaitForCard(kUser* pk_User, kCard* pk_Card)
 {
     Utils::Print("Please approximate the card to the reader now!\r\nYou have 5 seconds. Abort with ESC.\r\n");
-    
+    char Buf[80];
     uint64_t u64_Start = Utils::GetMillis64();
+    uint64_t u64_Remaining;
 
     while (true)
     {
+        u64_Remaining = 8000 - (Utils::GetMillis64() - u64_Start);
         lcd.setCursor(0,1);
-        lcd.print("Waiting 8s     ");
+        sprintf(Buf, "Waiting: %lds        ", u64_Remaining/1000);
+        lcd.print(Buf);
         LongDelay(1000);
         if (ReadCard(pk_User->ID.u8, pk_Card) && pk_Card->u8_UidLength > 0)
         {
