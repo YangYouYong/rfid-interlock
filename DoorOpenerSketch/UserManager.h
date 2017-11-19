@@ -23,6 +23,7 @@
 
 enum eUserFlags
 {
+    NO_DOOR   = 0,
     DOOR_ONE  = 1,
     DOOR_TWO  = 2,
     DOOR_BOTH = DOOR_ONE | DOOR_TWO,

@@ -76,6 +76,13 @@
 // This Arduino / Teensy pin is connected to the voltage divider that measures the 13,6V battery voltage
 #define VOLTAGE_MEASURE_PIN  A9
 
+// The pin that connects to the button that opens the door
+// This pin is ignored if BUTTON_OPEN_DOOR == NO_DOOR
+#define BUTTON_OPEN_PIN  15
+
+// Define which door is opened when the button is pressed (NO_DOOR, DOOR_ONE, DOOR_TWO or DOOR_BOTH)
+#define BUTTON_OPEN_DOOR  NO_DOOR
+
 // Use 12 bit resolution for the analog input (ADC)
 // The Teensy 3.x boards have a 12 bit ADC.
 #define ANALOG_RESOLUTION  12
@@ -156,10 +163,10 @@ struct kCard
 
 // global variables
 char       gs8_CommandBuffer[500];  // Stores commands typed by the user via Terminal and the password
-uint32_t   gu32_CommandPos = 0;     // Index in gs8_CommandBuffer
-uint64_t   gu64_LastPasswd = 0;     // Timestamp when the user has enetered the password successfully
-uint64_t   gu64_LastID     = 0;     // The last card UID that has been read by the RFID reader  
-bool       gb_InitSuccess  = false; // true if the PN532 has been initialized successfully
+uint32_t   gu32_CommandPos   = 0;     // Index in gs8_CommandBuffer
+uint64_t   gu64_LastPasswd   = 0;     // Timestamp when the user has enetered the password successfully
+uint64_t   gu64_LastID       = 0;     // The last card UID that has been read by the RFID reader  
+bool       gb_InitSuccess    = false; // true if the PN532 has been initialized successfully
 
 void setup() 
 {
@@ -177,6 +184,8 @@ void setup()
     Utils::SetPinMode(LED_GREEN_PIN, OUTPUT);      
     Utils::SetPinMode(LED_RED_PIN,   OUTPUT);
     Utils::SetPinMode(LED_BUILTIN,   OUTPUT);
+
+    Utils::SetPinMode(BUTTON_OPEN_PIN, INPUT_PULLUP);
     
     // A longer pause is required to assure that the condensator at VOLTAGE_MEASURE_PIN 
     // has been charged before the battery voltage is measured for the first time.
@@ -204,6 +213,7 @@ void loop()
 {   
     bool b_KeyPress  = ReadKeyboardInput();
     bool b_VoltageOK = CheckBattery();   
+    CheckOpenButton();
 
     uint64_t u64_StartTick = Utils::GetMillis64();
 
@@ -445,7 +455,7 @@ void OnCommandReceived(bool b_PasswordValid)
     gu64_LastPasswd = Utils::GetMillis64() + PASSWORD_OFFSET_MS;
 
     // This command must work even if gb_InitSuccess == false
-    if (strnicmp(gs8_CommandBuffer, "DEBUG", 5) == 0)
+    if (Utils::strnicmp(gs8_CommandBuffer, "DEBUG", 5) == 0)
     {
         if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 1, 1))
             return;
@@ -461,7 +471,7 @@ void OnCommandReceived(bool b_PasswordValid)
     }    
 
     // This command must work even if gb_InitSuccess == false
-    if (stricmp(gs8_CommandBuffer, "RESET") == 0)
+    if (Utils::stricmp(gs8_CommandBuffer, "RESET") == 0)
     {
         InitReader(false);
         if (gb_InitSuccess)
@@ -472,7 +482,7 @@ void OnCommandReceived(bool b_PasswordValid)
     }   
 
     // This command must work even if gb_InitSuccess == false
-    if (PASSWORD[0] != 0 && stricmp(gs8_CommandBuffer, "EXIT") == 0)
+    if (PASSWORD[0] != 0 && Utils::stricmp(gs8_CommandBuffer, "EXIT") == 0)
     {
         gu64_LastPasswd = 0;
         Utils::Print("You have logged out.\r\n");
@@ -481,20 +491,20 @@ void OnCommandReceived(bool b_PasswordValid)
   
     if (gb_InitSuccess)
     {
-        if (stricmp(gs8_CommandBuffer, "CLEAR") == 0)
+        if (Utils::stricmp(gs8_CommandBuffer, "CLEAR") == 0)
         {
             ClearEeprom();
             return;
         }
     
-        if (stricmp(gs8_CommandBuffer, "LIST") == 0)
+        if (Utils::stricmp(gs8_CommandBuffer, "LIST") == 0)
         {
             UserManager::ListAllUsers();
             return;
         }
 
         #if USE_DESFIRE
-            if (stricmp(gs8_CommandBuffer, "RESTORE") == 0)
+            if (Utils::stricmp(gs8_CommandBuffer, "RESTORE") == 0)
             {
                 if (RestoreDesfireCard()) Utils::Print("Restore success\r\n");
                 else                      Utils::Print("Restore failed\r\n");
@@ -502,7 +512,7 @@ void OnCommandReceived(bool b_PasswordValid)
                 return;
             }
 
-            if (stricmp(gs8_CommandBuffer, "MAKERANDOM") == 0)
+            if (Utils::stricmp(gs8_CommandBuffer, "MAKERANDOM") == 0)
             {
                 if (MakeRandomCard()) Utils::Print("MakeRandom success\r\n");
                 else                  Utils::Print("MakeRandom failed\r\n");
@@ -511,7 +521,7 @@ void OnCommandReceived(bool b_PasswordValid)
             }
 
             #if COMPILE_SELFTEST > 0
-                if (stricmp(gs8_CommandBuffer, "TEST") == 0)
+                if (Utils::stricmp(gs8_CommandBuffer, "TEST") == 0)
                 {
                     gi_PN532.SetDebugLevel(COMPILE_SELFTEST);
                     if (gi_PN532.Selftest()) Utils::Print("\r\nSelftest success\r\n");
@@ -523,7 +533,7 @@ void OnCommandReceived(bool b_PasswordValid)
             #endif
         #endif
     
-        if (strnicmp(gs8_CommandBuffer, "ADD", 3) == 0)
+        if (Utils::strnicmp(gs8_CommandBuffer, "ADD", 3) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 3, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -535,7 +545,7 @@ void OnCommandReceived(bool b_PasswordValid)
             return;
         }
     
-        if (strnicmp(gs8_CommandBuffer, "DEL", 3) == 0)
+        if (Utils::strnicmp(gs8_CommandBuffer, "DEL", 3) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 3, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -546,7 +556,7 @@ void OnCommandReceived(bool b_PasswordValid)
             return;
         }    
 
-        if (strnicmp(gs8_CommandBuffer, "DOOR12", 6) == 0) // FIRST !!!
+        if (Utils::strnicmp(gs8_CommandBuffer, "DOOR12", 6) == 0) // FIRST !!!
         {
             if (!ParseParameter(gs8_CommandBuffer + 6, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -556,7 +566,7 @@ void OnCommandReceived(bool b_PasswordValid)
 
             return;
         }    
-        if (strnicmp(gs8_CommandBuffer, "DOOR1", 5) == 0) // AFTER !!!
+        if (Utils::strnicmp(gs8_CommandBuffer, "DOOR1", 5) == 0) // AFTER !!!
         {
             if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -566,7 +576,7 @@ void OnCommandReceived(bool b_PasswordValid)
 
             return;
         }    
-        if (strnicmp(gs8_CommandBuffer, "DOOR2", 5) == 0)
+        if (Utils::strnicmp(gs8_CommandBuffer, "DOOR2", 5) == 0)
         {
             if (!ParseParameter(gs8_CommandBuffer + 5, &s8_Parameter, 3, NAME_BUF_SIZE -1))
                 return;
@@ -930,28 +940,33 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
         default:             Utils::Print(" (Classic card)",         LF); break;
     }
 
+    ActivateRelais(k_User.u8_Flags);
+
+    // Avoid that the door is opened twice when the card is in the RF field for a longer time.
+    gu64_LastID = u64_ID;
+}
+
+void ActivateRelais(byte u8_Flags)
+{
     SetLED(LED_GREEN);
-    if (k_User.u8_Flags & DOOR_ONE)
+    if (u8_Flags & DOOR_ONE)
     {
         Utils::WritePin(DOOR_1_PIN, HIGH);
         LongDelay(OPEN_INTERVAL);
         Utils::WritePin(DOOR_1_PIN, LOW);
     }
-    if ((k_User.u8_Flags & DOOR_BOTH) == DOOR_BOTH)
+    if ((u8_Flags & DOOR_BOTH) == DOOR_BOTH)
     {
         LongDelay(500); // make a pause between activation of the relais
     }
-    if (k_User.u8_Flags & DOOR_TWO)
+    if (u8_Flags & DOOR_TWO)
     {
         Utils::WritePin(DOOR_2_PIN, HIGH);
         LongDelay(OPEN_INTERVAL);
         Utils::WritePin(DOOR_2_PIN, LOW);
     }
     LongDelay(1000);
-    SetLED(LED_OFF);
-
-    // Avoid that the door is opened twice when the card is in the RF field for a longer time.
-    gu64_LastID = u64_ID;
+    SetLED(LED_OFF);  
 }
 
 // returns the voltage at the given pin in Volt multiplied with 10
@@ -978,6 +993,37 @@ bool CheckBattery()
         Utils::WritePin(CHARGE_PIN, HIGH); // Start charging
 
     return (u32_Volt >= 130 && u32_Volt < 140);
+}
+
+// The button that opens the door without RFID card must be debounced.
+void CheckOpenButton()
+{
+    // Ignore the button pin if no door is to be opened
+    if (BUTTON_OPEN_DOOR == NO_DOOR)
+        return;
+    
+    static uint64_t u64_ButtonPress = 0; // Timestamp when the 'open door button' has been pressed for the last time
+
+    if (Utils::ReadPin(BUTTON_OPEN_PIN) == LOW) // LOW: button pressed
+    {
+        if (u64_ButtonPress == 0) // the button has not been pressed for > 2 seconds
+        {
+            Utils::Print("Button pressed -> opening the door(s)");
+            ActivateRelais(BUTTON_OPEN_DOOR);
+        }
+
+        // While the user is holding the button down -> store the current tick counter in the variable
+        u64_ButtonPress = Utils::GetMillis64();        
+    }
+    else // HIGH: button released
+    {
+        if (u64_ButtonPress == 0)
+            return;
+
+        // If the button has been pressed recently check if 2 seconds have passed in which the button has been released.        
+        if (Utils::GetMillis64() - u64_ButtonPress >= 2000)
+            u64_ButtonPress = 0; // set = 0 -> allow opening the door again
+    }
 }
 
 // Use this for delays > 100 ms to guarantee that the battery is checked frequently

@@ -280,6 +280,7 @@ class Desfire : public PN532
     bool CreateStdDataFile(byte u8_FileID, DESFireFilePermissions* pk_Permis, int s32_FileSize);
     bool ReadFileData     (byte u8_FileID, int s32_Offset, int s32_Length, byte* u8_DataBuffer);
     bool WriteFileData    (byte u8_FileID, int s32_Offset, int s32_Length, const byte* u8_DataBuffer);
+	bool ReadFileValue    (byte u8_FileID, uint32_t* pu32_Value)
     // ---------------------
     bool SwitchOffRfField();  // overrides PN532::SwitchOffRfField()
     bool Selftest();

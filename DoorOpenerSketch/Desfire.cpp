@@ -972,6 +972,22 @@ bool Desfire::WriteFileData(byte u8_FileID, int s32_Offset, int s32_Length, cons
     return true;
 }
 
+/**************************************************************************
+    Reads the value of a Value File
+**************************************************************************/
+bool Desfire::ReadFileValue(byte u8_FileID, uint32_t* pu32_Value)
+{
+	TX_BUFFER(i_Params, 1);
+	i_Params.AppendUint8(u8_FileID);
+
+	RX_BUFFER(i_RetData, 4);
+	if (4 != DataExchange(DF_INS_GET_VALUE, &i_Params, i_RetData, 4, NULL, MAC_TmacRmac))
+		return false;
+
+	*pu32_Value = i_RetData.ReadUint32();
+	return true;
+}
+
 // ########################################################################
 // ####                      LOW LEVEL FUNCTIONS                      #####
 // ########################################################################
@@ -982,7 +998,7 @@ bool Desfire::WriteFileData(byte u8_FileID, int s32_Offset, int s32_Length, cons
 // The commands that are executed first (GetKeyVersion and SelectApplication) execute without problems.
 // But it when it comes to Authenticate() the card suddenly does not respond anymore -> Timeout from PN532.
 // Conclusion: It seems that a Desfire card increases its power consumption in the moment when encrypting data,
-// so when it is too far away from the antenna -> the connection dies.
+// so when it is too far away from the antenna -> the connection dies -> no answer -> timeout.
 byte Desfire::GetLastPN532Error()
 {
     return mu8_LastPN532Error;

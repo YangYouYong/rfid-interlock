@@ -2,6 +2,18 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+// If you compile this project on Visual Studio...
+#ifdef _MSC_VER 
+    #include "../DoorOpenerSolution/WinDefines.h"
+
+// If you use the Arduino Compiler....
+#else 
+    #include <Arduino.h>
+
+    #define TRUE   true
+    #define FALSE  false
+#endif
+
 // *********************************************************************************
 // The following switches define how the Teensy communicates with the PN532 board.
 // For the DoorOpener sketch the only valid option is Software SPI.
@@ -9,12 +21,11 @@
 // ATTENTION: Only one of the following defines must be set to true!
 // NOTE: In Software SPI mode there is no external libraray required. Only 4 regular digital pins are used.
 // If you want to transfer the code to another processor the easiest way will be to use Software SPI mode.
-#define USE_SOFTWARE_SPI   true
-#define USE_HARDWARE_SPI   false
-#define USE_HARDWARE_I2C   false
+#define USE_SOFTWARE_SPI   TRUE   // Visual Studio needs this in upper case
+#define USE_HARDWARE_SPI   FALSE  // Visual Studio needs this in upper case
+#define USE_HARDWARE_I2C   FALSE  // Visual Studio needs this in upper case
 // ********************************************************************************/
 
-#include <Arduino.h>
 
 #if USE_HARDWARE_SPI
     #include <SPI.h>  // Hardware SPI bus
@@ -36,24 +47,9 @@
     #define LOW      0x0
 #endif
 
-// If you compile this project on Visual Studio...
-#ifdef _MSC_VER 
-	typedef unsigned __int64 uint64_t;
-	typedef __int64           int64_t;
-	typedef unsigned int     uint32_t;
-	typedef int               int32_t;
-	typedef unsigned short   uint16_t;
-	typedef short             int16_t;
-	typedef unsigned char     uint8_t;
-	typedef char               int8_t;
-    // disable "sprintf deprecated" warning
-    #pragma warning(disable: 4996) 
-#endif
-
 // -------------------------------------------------------------------------------------------------------------------
 
 // USB connection to Terminal program (Teraterm) on PC via COM port
-// When you compile the code for Linux, Windows or any other platform you must modify this class.
 // You can leave all functions empty and only redirect Print() to printf().
 class SerialClass
 {  
@@ -70,13 +66,13 @@ public:
         return Serial.available();
     }
     // Get the next character from the Terminal program on the PC
-	// returns -1 if no character available
+    // returns -1 if no character available
     static inline int Read()
     {
         return Serial.read();
     }
     // Print text to the Terminal program on the PC
-	// On Windows/Linux use printf() here to write debug output an errors to the Console.
+    // On Windows/Linux use printf() here to write debug output an errors to the Console.
     static inline void Print(const char* s8_Text)
     {
         Serial.print(s8_Text);
@@ -87,7 +83,6 @@ public:
 
 #if USE_HARDWARE_SPI
     // This class implements Hardware SPI (4 wire bus). It is not used for the DoorOpener sketch.
-    // When you compile the code for Linux, Windows or any other platform you must modify this class.
     // NOTE: This class is not used when you switched to I2C mode with PN532::InitI2C() or Software SPI mode with PN532::InitSoftwareSPI().
     class SpiClass
     {  
@@ -109,7 +104,6 @@ public:
 
 #if USE_HARDWARE_I2C
     // This class implements Hardware I2C (2 wire bus with pull-up resistors). It is not used for the DoorOpener sketch.
-    // When you compile the code for Linux, Windows or any other platform you must modify this class.
     // NOTE: This class is not used when you switched to SPI mode with PN532::InitSoftwareSPI() or PN532::InitHardwareSPI().
     class I2cClass
     {  
@@ -157,49 +151,44 @@ class Utils
 {
 public:
     // returns the current tick counter
-	// When you compile the code for Linux, Windows or any other platform you must change this function.
-	// On Windows use GetTickCount() here
+    // If you compile on Visual Studio see WinDefines.h
     static inline uint32_t GetMillis()
     {
         return millis();
     }
 
-	// When you compile the code for Linux, Windows or any other platform you must change this function.
-	// Use Sleep() here.
+    // If you compile on Visual Studio see WinDefines.h
     static inline void DelayMilli(int s32_MilliSeconds)
     {
         delay(s32_MilliSeconds);
     }
 
-	// This function is only required for Software SPI mode.
-    // When you compile the code for Linux, Windows or any other platform you must change this function.
-	// There is no API in Windows that supports delays shorter than approx 20 milli seconds. (Sleep(1) will sleep approx 20 ms)
-	// To implement delays in micro seconds you can use a loop that runs until a performance counter has reached the expected value.
-	// On Windows use: while(...) { .. QueryPerformanceCounter() .. if (Counter > X) break; .. }
+    // This function is only required for Software SPI mode.
+    // If you compile on Visual Studio see WinDefines.h
     static inline void DelayMicro(int s32_MicroSeconds)
     {
         delayMicroseconds(s32_MicroSeconds);
     }
     
-	// Defines if a digital processor pin is used as input or output
+    // Defines if a digital processor pin is used as input or output
     // u8_Mode = INPUT or OUTPUT
-    // When you compile the code for Linux, Windows or any other platform you must change this function.	
+    // If you compile on Visual Studio see WinDefines.h   
     static inline void SetPinMode(byte u8_Pin, byte u8_Mode)
     {
         pinMode(u8_Pin, u8_Mode);
     }
     
-	// Sets a digital processor pin high or low.
+    // Sets a digital processor pin high or low.
     // u8_Status = HIGH or LOW
-	// When you compile the code for Linux, Windows or any other platform you must change this function.
+    // If you compile on Visual Studio see WinDefines.h
     static inline void WritePin(byte u8_Pin, byte u8_Status)
     {
         digitalWrite(u8_Pin, u8_Status);
     }
 
-	// reads the current state of a digital processor pin.
+    // reads the current state of a digital processor pin.
     // returns HIGH or LOW
-    // When you compile the code for Linux, Windows or any other platform you must change this function.	
+    // If you compile on Visual Studio see WinDefines.h   
     static inline byte ReadPin(byte u8_Pin)
     {
         return digitalRead(u8_Pin);
@@ -220,6 +209,8 @@ public:
     static void     XorDataBlock(byte* u8_Data, const byte* u8_Xor, int s32_Length);
     static uint16_t CalcCrc16(const byte* u8_Data,  int s32_Length);
     static uint32_t CalcCrc32(const byte* u8_Data1, int s32_Length1, const byte* u8_Data2=NULL, int s32_Length2=0);
+    static int      strnicmp(const char* str1, const char* str2, uint32_t u32_MaxCount);
+    static int      stricmp (const char* str1, const char* str2);
 
 private:
     static uint32_t CalcCrc32(const byte* u8_Data, int s32_Length, uint32_t u32_Crc);

@@ -26,7 +26,7 @@
  *   Jan. 18, 2013      Nnoduka Eruchalu     Added DES_set_key
  */
 
-#include "Des.h"
+#include "DES.h"
 #include "Utils.h"
 
 #define c2l(c,l)  (l =((DES_LONG)(*((c)++)))    , \
