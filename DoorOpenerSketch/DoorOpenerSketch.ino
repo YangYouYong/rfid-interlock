@@ -216,7 +216,7 @@ void loop()
       //sprintf(Buf, "Keeping Door(s) open for %ldms\r\n", door_open_timer);
       //Utils::Print(Buf);
       lcd.setCursor(0,0);
-      lcd.print("SAW Table ON!!    ");
+      lcd.print("LATHE ON!!          ");
       if ( door_open_timer < OPEN_INTERVAL - 2000)
       {
         lcd.setCursor(0,1);
@@ -979,7 +979,7 @@ void OpenDoor(uint64_t u64_ID, kCard* pk_Card, uint64_t u64_StartTick)
       char Buf[40];
       lcd.clear();
       lcd.setCursor(0,0);
-      lcd.print("SAW Table ON!!");
+      lcd.print("LATHE ON!!          ");
       lcd.setCursor(0,1);
     }
     if (k_User.u8_Flags == SUPER)
